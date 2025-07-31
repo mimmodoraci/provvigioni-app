@@ -10,21 +10,28 @@
       background: #f1f5f9;
       color: #1f2937;
     }
+    table, th, td {
+      border: 1px solid #ccc;
+      border-collapse: collapse;
+    }
   </style>
 </head>
 <body class="p-4 text-gray-800">
   <div class="max-w-2xl mx-auto space-y-6">
 
-    <!-- 🔘 Pulsante PDF -->
-    <div class="text-right">
-      <button onclick="window.print()" class="bg-green-600 text-white px-4 py-2 rounded-md">
-        📄 Esporta in PDF
+    <!-- Bottoni azione -->
+    <div class="text-right space-x-2">
+      <button onclick="stampaContratti()" class="bg-green-600 text-white px-4 py-2 rounded-md">
+        📄 Esporta Contratti in PDF
+      </button>
+      <button onclick="esportaCSV()" class="bg-yellow-500 text-white px-4 py-2 rounded-md">
+        📊 Esporta in CSV
       </button>
     </div>
 
-    <!-- 🔢 Selezione mese/anno -->
+    <!-- Selezione mese/anno -->
     <div class="bg-white p-4 rounded-2xl shadow">
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label for="mese" class="font-semibold">Mese</label>
           <select id="mese" class="w-full mt-1 p-2 border rounded-md"></select>
@@ -36,22 +43,24 @@
       </div>
     </div>
 
-    <!-- 🧮 Calcolo -->
+    <!-- Inserimento Contratto -->
     <div class="bg-white p-4 rounded-2xl shadow">
       <h2 class="text-xl font-bold mb-4">Calcolo Provvigioni</h2>
+      <div id="erroreInserimento"></div>
       <label class="font-semibold">Numero Contratto</label>
       <input type="text" id="contratto" class="w-full p-2 border rounded-md" oninput="prefissoContratto()">
 
       <label class="font-semibold mt-4">Fatturato Lordo &euro;</label>
-      <input type="number" id="lordo" class="w-full p-2 border rounded-md" oninput="calcolaNetto()">
+      <input type="number" id="lordo" inputmode="numeric" min="0" step="0.01" onkeypress="return soloNumeri(event)" class="w-full p-2 border rounded-md">
 
       <label class="font-semibold mt-4">Giorni Contratto</label>
-      <input type="number" id="giorni" class="w-full p-2 border rounded-md">
+      <input type="number" id="giorni" inputmode="numeric" min="1" max="365" onkeypress="return soloNumeri(event)" class="w-full p-2 border rounded-md">
 
       <button onclick="aggiungiContratto()" class="mt-6 bg-blue-600 text-white py-2 rounded-md w-full">Calcola e Salva</button>
+      <div id="salvataggioOK"></div>
     </div>
 
-    <!-- 📋 Contratti -->
+    <!-- Sezione Contratti -->
     <div class="bg-white p-4 rounded-2xl shadow">
       <h3 class="text-lg font-semibold mb-2">Contratti Salvati</h3>
       <table class="w-full text-sm text-center">
@@ -70,7 +79,6 @@
       <div class="mt-4 text-right font-semibold" id="totaleProvvigioni"></div>
       <div class="text-right font-semibold" id="rpdTotale"></div>
     </div>
-
   </div>
 
   <script>
@@ -148,7 +156,7 @@
       const netto = lordo * 0.78;
 
       if (!codice || isNaN(netto) || isNaN(giorni) || giorni <= 0) {
-        alert("Inserisci tutti i campi correttamente.");
+        mostraErrore("Inserisci tutti i campi correttamente.");
         return;
       }
 
@@ -156,13 +164,33 @@
       contratti.push({ codice, netto, giorni });
       setContratti(contratti);
       aggiornaTabella();
+      mostraSalvato();
 
       document.getElementById("contratto").value = "";
       document.getElementById("lordo").value = "";
       document.getElementById("giorni").value = "";
     }
 
-    function calcolaNetto() {}
+    function soloNumeri(e) {
+      const char = String.fromCharCode(e.which);
+      if (!/[0-9]/.test(char)) {
+        e.preventDefault();
+        return false;
+      }
+      return true;
+    }
+
+    function mostraErrore(msg) {
+      const div = document.getElementById("erroreInserimento");
+      div.innerHTML = `<p class='text-red-600 text-sm mb-2'>${msg}</p>`;
+      setTimeout(() => div.innerHTML = '', 3000);
+    }
+
+    function mostraSalvato() {
+      const div = document.getElementById("salvataggioOK");
+      div.innerHTML = `<p class='text-green-600 text-sm mt-2'>✅ Salvato</p>`;
+      setTimeout(() => div.innerHTML = '', 2000);
+    }
 
     function prefissoContratto() {
       const input = document.getElementById("contratto");
@@ -179,6 +207,49 @@
         setContratti(contratti);
         aggiornaTabella();
       }
+    }
+
+    function stampaContratti() {
+      const sezione = document.querySelector(".bg-white:last-of-type");
+      const stampaFinestra = window.open('', '', 'width=800,height=600');
+      stampaFinestra.document.write(`
+        <html><head>
+          <title>Contratti Salvati</title>
+          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+          <style>body { font-family: sans-serif; padding: 20px; } table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px; }</style>
+        </head><body>${sezione.innerHTML}</body></html>`);
+      stampaFinestra.document.close();
+      stampaFinestra.focus();
+      stampaFinestra.print();
+      stampaFinestra.close();
+    }
+
+    function esportaCSV() {
+      const contratti = getContratti();
+      let csv = "Codice,Netto,Giorni,RPD,Provvigione\n";
+      let sommaNetto = 0, sommaGiorni = 0;
+
+      contratti.forEach(c => {
+        sommaNetto += c.netto;
+        sommaGiorni += c.giorni;
+      });
+
+      let rpdTotale = sommaNetto / sommaGiorni;
+      let percentuale = getPercentualeProvvigione(rpdTotale);
+
+      contratti.forEach(c => {
+        const rpd = c.netto / c.giorni;
+        const provvigione = c.netto * percentuale;
+        csv += `${c.codice},${c.netto.toFixed(2)},${c.giorni},${rpd.toFixed(2)},${provvigione.toFixed(2)}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.setAttribute("href", URL.createObjectURL(blob));
+      link.setAttribute("download", "contratti.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
     meseSelect.addEventListener("change", aggiornaTabella);
