@@ -14,7 +14,6 @@
     }
     input:focus, select:focus {
       outline: 2px solid #3b82f6;
-      outline-offset: 2px;
     }
     th {
       background-color: #f3f4f6;
@@ -23,20 +22,36 @@
       font-weight: 600;
       color: #374151;
     }
-    /* Modal hidden by default */
-    #modalConferma {
-      transition: opacity 0.3s ease;
+    /* Campo contratto con prefisso */
+    #contratto-wrapper {
+      display: flex;
+      align-items: center;
+    }
+    #prefisso {
+      background: #e5e7eb;
+      border: 1px solid #d1d5db;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.375rem 0 0 0.375rem;
+      font-weight: 600;
+      color: #374151;
+      user-select: none;
+    }
+    #contratto {
+      border-radius: 0 0.375rem 0.375rem 0;
+      border-left: none;
+      flex-grow: 1;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #d1d5db;
     }
   </style>
 </head>
 <body class="p-6">
   <div class="max-w-5xl mx-auto space-y-8">
-
-    <!-- Intestazione Totali -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2">
+    <!-- Intestazione -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
       <div class="text-gray-700 font-semibold text-base space-y-1">
-        <div id="totaleContratti">Contratti salvati: 0</div>
-        <div id="totaleGiorni">Totale giorni: 0</div>
+        <div id="totaleContratti">Contratti totali: 0</div>
+        <div id="totaleGiorni">Giorni totali: 0</div>
       </div>
       <div class="space-x-2 mt-4 sm:mt-0">
         <button onclick="stampaContratti()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl shadow">
@@ -45,7 +60,7 @@
       </div>
     </div>
 
-    <!-- Selezione Mese/Anno -->
+    <!-- Selezione mese/anno -->
     <div class="bg-white p-6 rounded-2xl shadow-xl">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div>
@@ -62,13 +77,13 @@
     <!-- Inserimento Contratto -->
     <div class="bg-white p-6 rounded-2xl shadow-xl">
       <h2 class="text-2xl font-bold mb-4 text-gray-800">Inserisci Dati Contratto</h2>
-      <div id="erroreInserimento" class="text-red-600 font-semibold mb-3"></div>
+      <div id="erroreInserimento" class="text-red-600 font-semibold mb-2"></div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div>
           <label class="form-label">Numero Contratto</label>
-          <div class="flex items-center space-x-2">
-            <span class="inline-block bg-gray-200 text-gray-700 px-3 py-2 rounded-l-md select-none">25-bri-</span>
-            <input type="text" id="contratto" class="flex-1 p-2 border border-gray-300 rounded-r-md" inputmode="numeric" maxlength="10" placeholder="Inserisci numero" />
+          <div id="contratto-wrapper">
+            <span id="prefisso">25-BRI-</span>
+            <input type="text" id="contratto" inputmode="numeric" pattern="[0-9]*" placeholder="Inserisci numero" class="w-full" />
           </div>
         </div>
         <div>
@@ -102,21 +117,22 @@
           <tbody id="tabella"></tbody>
         </table>
       </div>
-      <div class="mt-4 text-right text-base text-gray-800 font-semibold" id="totaleProvvigioni">Totale provvigioni: € 0.00</div>
-      <div class="text-right text-sm text-gray-600 font-medium" id="rpdTotale">RPD attuale: € 0.00</div>
+      <div class="mt-4 text-right text-base text-gray-800 font-semibold" id="totaleProvvigioni"></div>
+      <div class="text-right text-sm text-gray-600 font-medium" id="rpdTotale"></div>
+      <div class="text-right text-sm text-gray-600 font-medium" id="provvPercentuale"></div>
     </div>
 
     <!-- Grafico -->
     <div class="bg-white p-6 rounded-2xl shadow-xl">
       <h3 class="text-xl font-semibold mb-4 text-gray-800">Andamento RPD</h3>
-      <canvas id="graficoProvvigioni" height="100"></canvas>
+      <canvas id="graficoRPD" height="100"></canvas>
     </div>
   </div>
 
   <!-- Modal Conferma Eliminazione -->
-  <div id="modalConferma" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+  <div id="modalConferma" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
     <div class="bg-white p-6 rounded-xl shadow-xl w-80">
-      <p class="text-center mb-4 text-gray-800 font-semibold">Sei sicuro di voler eliminare questo contratto?</p>
+      <p class="text-center mb-4 text-gray-800">Sei sicuro di voler eliminare questo contratto?</p>
       <div class="flex justify-between">
         <button onclick="chiudiModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded">Annulla</button>
         <button id="btnConfermaEliminazione" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">Elimina</button>
@@ -125,254 +141,165 @@
   </div>
 
   <script>
-    const mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
-    const meseSelect = document.getElementById("mese");
-    const annoSelect = document.getElementById("anno");
+    // Variabili globali
+    let contratti = [];
+    let contrattoDaEliminare = null;
+    let chartRPD = null;
 
-    const oggi = new Date();
-    mesi.forEach((mese, i) => {
-      meseSelect.innerHTML += `<option value="${i + 1}">${mese}</option>`;
-    });
-    for (let y = oggi.getFullYear() - 2; y <= oggi.getFullYear() + 2; y++) {
-      annoSelect.innerHTML += `<option value="${y}">${y}</option>`;
-    }
-    meseSelect.value = oggi.getMonth() + 1;
-    annoSelect.value = oggi.getFullYear();
-
-    // Elementi display
-    const totaleContrattiDisplay = document.getElementById("totaleContratti");
-    const totaleGiorniDisplay = document.getElementById("totaleGiorni");
-    const totaleProvvigioniDisplay = document.getElementById("totaleProvvigioni");
-    const rpdTotaleDisplay = document.getElementById("rpdTotale");
-    const tabella = document.getElementById("tabella");
-    const erroreInserimento = document.getElementById("erroreInserimento");
-    const salvataggioOK = document.getElementById("salvataggioOK");
-    const inputContratto = document.getElementById("contratto");
-
-    // Modal e variabili per eliminazione
-    const modal = document.getElementById("modalConferma");
-    let indiceDaEliminare = null;
-
-    // Funzioni di calcolo
-    function calcolaNetto(lordo) {
-      return lordo * 0.75;
+    // Popola mese e anno
+    function popolaMeseAnno() {
+      const meseSelect = document.getElementById('mese');
+      const annoSelect = document.getElementById('anno');
+      const mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+                    "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+      const now = new Date();
+      for (let i = 0; i < 12; i++) {
+        const opt = document.createElement('option');
+        opt.value = i + 1;
+        opt.text = mesi[i];
+        meseSelect.appendChild(opt);
+      }
+      for(let y = now.getFullYear() - 5; y <= now.getFullYear() + 5; y++) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.text = y;
+        annoSelect.appendChild(opt);
+      }
+      meseSelect.value = now.getMonth() + 1;
+      annoSelect.value = now.getFullYear();
     }
 
-    function calcolaRPD(lordo, giorni) {
-      return giorni > 0 ? lordo / giorni : 0;
+    // Calcolo provvigione in base a RPD
+    function calcolaPercentualeProvv(rpd) {
+      if (rpd <= 1000) return 3;
+      if (rpd <= 1500) return 6;
+      return 8;
     }
 
-    function calcolaProvvigione(netto) {
-      if (netto <= 30000) return netto * 0.045;
-      if (netto <= 100000) return netto * 0.04;
-      return netto * 0.035;
-    }
-
-    // Gestione contratti in localStorage
-    function getContratti() {
-      return JSON.parse(localStorage.getItem("contratti")) || [];
-    }
-    function salvaContratti(arr) {
-      localStorage.setItem("contratti", JSON.stringify(arr));
-    }
-
-    // Validazione inserimento e aggiunta contratto
+    // Aggiungi contratto
     function aggiungiContratto() {
-      erroreInserimento.textContent = "";
-      salvataggioOK.textContent = "";
-
-      let numeroContratto = inputContratto.value.trim();
-      // Permetti solo numeri, al massimo 10 cifre
-      if (!/^\d{1,10}$/.test(numeroContratto)) {
-        erroreInserimento.textContent = "Il numero contratto deve contenere solo cifre (max 10).";
+      const erroreDiv = document.getElementById('erroreInserimento');
+      erroreDiv.textContent = '';
+      let contrattoNum = document.getElementById('contratto').value.trim();
+      const prefisso = "25-BRI-";
+      // Validazione contratto: solo numeri e non vuoto
+      if (!/^\d+$/.test(contrattoNum)) {
+        erroreDiv.textContent = "Il numero contratto deve contenere solo numeri.";
         return;
       }
-      numeroContratto = "25-bri-" + numeroContratto;
+      contrattoNum = prefisso + contrattoNum;
 
-      const lordo = parseFloat(document.getElementById("lordo").value);
-      const giorni = parseInt(document.getElementById("giorni").value);
+      const lordo = parseFloat(document.getElementById('lordo').value);
+      const giorni = parseInt(document.getElementById('giorni').value);
 
       if (isNaN(lordo) || lordo < 0) {
-        erroreInserimento.textContent = "Inserisci un valore valido per il fatturato lordo.";
+        erroreDiv.textContent = "Inserisci un valore valido per il fatturato lordo.";
         return;
       }
       if (isNaN(giorni) || giorni < 1 || giorni > 365) {
-        erroreInserimento.textContent = "Inserisci un numero giorni tra 1 e 365.";
+        erroreDiv.textContent = "Inserisci un numero di giorni tra 1 e 365.";
+        return;
+      }
+      // Controllo duplicati
+      if (contratti.some(c => c.contratto === contrattoNum)) {
+        erroreDiv.textContent = "Numero contratto già inserito.";
         return;
       }
 
-      const contratti = getContratti();
+      // Calcolo netto (ipotizziamo una detrazione fissa o da modificare)
+      const netto = lordo * 0.85; // esempio 15% di detrazione
+      const rpd = netto / giorni;
 
-      // Controlla se numero contratto già esiste
-      if (contratti.some(c => c.contratto === numeroContratto)) {
-        erroreInserimento.textContent = "Numero contratto già presente.";
-        return;
-      }
+      // Calcolo provvigione
+      const percentualeProvv = calcolaPercentualeProvv(rpd);
+      const provv = netto * (percentualeProvv / 100);
 
       contratti.push({
-        contratto: numeroContratto,
-        lordo: lordo,
-        giorni: giorni
+        contratto: contrattoNum,
+        netto: netto,
+        giorni: giorni,
+        rpd: rpd,
+        provv: provv,
+        percentualeProvv: percentualeProvv
       });
 
-      salvaContratti(contratti);
+      aggiornaUI();
+
+      // Reset input
+      document.getElementById('contratto').value = '';
+      document.getElementById('lordo').value = '';
+      document.getElementById('giorni').value = '';
+
+      // Messaggio di conferma
+      const salvataggioOK = document.getElementById('salvataggioOK');
       salvataggioOK.textContent = "Contratto salvato con successo!";
       setTimeout(() => { salvataggioOK.textContent = ""; }, 3000);
-
-      inputContratto.value = "";
-      document.getElementById("lordo").value = "";
-      document.getElementById("giorni").value = "";
-
-      aggiornaTabella();
     }
 
-    // Aggiorna tabella e totali
+    // Aggiorna UI
+    function aggiornaUI() {
+      aggiornaTabella();
+      aggiornaTotali();
+      aggiornaGrafico();
+    }
+
+    // Aggiorna tabella
     function aggiornaTabella() {
-      const contratti = getContratti();
-      tabella.innerHTML = "";
-
-      let totaleProvvigioni = 0;
-      let totaleGiorni = 0;
-      let totaleLordo = 0;
-
-      contratti.forEach((c, i) => {
-        const netto = calcolaNetto(c.lordo);
-        const rpd = calcolaRPD(c.lordo, c.giorni);
-        const provvigione = calcolaProvvigione(netto);
-
-        totaleProvvigioni += provvigione;
-        totaleGiorni += c.giorni;
-        totaleLordo += c.lordo;
-
-        const tr = document.createElement("tr");
-        tr.classList.add("border-b");
+      const tbody = document.getElementById('tabella');
+      tbody.innerHTML = '';
+      contratti.forEach((c, idx) => {
+        const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${c.contratto}</td>
-          <td>€ ${netto.toFixed(2)}</td>
+          <td>€ ${c.netto.toFixed(2)}</td>
           <td>${c.giorni}</td>
-          <td>€ ${rpd.toFixed(2)}</td>
-          <td>€ ${provvigione.toFixed(2)}</td>
-          <td><button class="text-red-600 hover:text-red-800 font-semibold" onclick="chiediElimina(${i})">✖</button></td>
+          <td>€ ${c.rpd.toFixed(2)}</td>
+          <td>€ ${c.provv.toFixed(2)}</td>
+          <td>
+            <button onclick="chiediEliminazione(${idx})" class="text-red-600 hover:text-red-800 font-semibold">Elimina</button>
+          </td>
         `;
-        tabella.appendChild(tr);
+        tbody.appendChild(tr);
       });
-
-      totaleContrattiDisplay.textContent = `Contratti salvati: ${contratti.length}`;
-      totaleGiorniDisplay.textContent = `Totale giorni: ${totaleGiorni}`;
-      totaleProvvigioniDisplay.textContent = `Totale provvigioni: € ${totaleProvvigioni.toFixed(2)}`;
-
-      const rpdAttuale = totaleGiorni > 0 ? (totaleLordo / totaleGiorni) : 0;
-      rpdTotaleDisplay.textContent = `RPD attuale: € ${rpdAttuale.toFixed(2)}`;
-
-      aggiornaGrafico(contratti);
     }
 
-    // Eliminazione con conferma
-    function chiediElimina(i) {
-      indiceDaEliminare = i;
-      modal.classList.remove("hidden");
-    }
-    function chiudiModal() {
-      indiceDaEliminare = null;
-      modal.classList.add("hidden");
-    }
-    document.getElementById("btnConfermaEliminazione").onclick = () => {
-      if (indiceDaEliminare !== null) {
-        const contratti = getContratti();
-        contratti.splice(indiceDaEliminare, 1);
-        salvaContratti(contratti);
-        aggiornaTabella();
-        chiudiModal();
-      }
-    };
+    // Aggiorna totali
+    function aggiornaTotali() {
+      const totaleContratti = contratti.length;
+      const totaleGiorni = contratti.reduce((sum, c) => sum + c.giorni, 0);
+      const totaleProvv = contratti.reduce((sum, c) => sum + c.provv, 0);
+      const totaleNetto = contratti.reduce((sum, c) => sum + c.netto, 0);
+      const totaleRPD = totaleNetto / (totaleGiorni || 1);
 
-    // Stampa PDF solo tabella e totali
-    function stampaContratti() {
-      const contratti = getContratti();
-      if (contratti.length === 0) {
-        alert("Nessun contratto da esportare.");
-        return;
-      }
+      document.getElementById('totaleContratti').textContent = `Contratti totali: ${totaleContratti}`;
+      document.getElementById('totaleGiorni').textContent = `Giorni totali: ${totaleGiorni}`;
+      document.getElementById('totaleProvvigioni').textContent = `Totale Provvigioni: € ${totaleProvv.toFixed(2)}`;
 
-      let html = `
-        <html>
-          <head>
-            <title>Contratti Provvigioni</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              table { border-collapse: collapse; width: 100%; }
-              th, td { border: 1px solid #333; padding: 8px; text-align: center; }
-              th { background-color: #f3f3f3; }
-              h2 { margin-bottom: 10px; }
-              .totali { margin-top: 15px; font-weight: bold; }
-            </style>
-          </head>
-          <body>
-            <h2>Contratti Salvati</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Contratto</th><th>Netto €</th><th>Giorni</th><th>RPD €</th><th>Provv. €</th>
-                </tr>
-              </thead>
-              <tbody>`;
+      document.getElementById('rpdTotale').textContent = `RPD attuale: € ${totaleRPD.toFixed(2)}`;
 
-      let totaleProvvigioni = 0;
-      let totaleGiorni = 0;
-      let totaleLordo = 0;
-
-      contratti.forEach(c => {
-        const netto = calcolaNetto(c.lordo);
-        const rpd = calcolaRPD(c.lordo, c.giorni);
-        const provvigione = calcolaProvvigione(netto);
-        totaleProvvigioni += provvigione;
-        totaleGiorni += c.giorni;
-        totaleLordo += c.lordo;
-
-        html += `<tr>
-          <td>${c.contratto}</td>
-          <td>€ ${netto.toFixed(2)}</td>
-          <td>${c.giorni}</td>
-          <td>€ ${rpd.toFixed(2)}</td>
-          <td>€ ${provvigione.toFixed(2)}</td>
-        </tr>`;
-      });
-
-      const rpdAttuale = totaleGiorni > 0 ? (totaleLordo / totaleGiorni) : 0;
-
-      html += `</tbody></table>
-        <div class="totali">Totale provvigioni: € ${totaleProvvigioni.toFixed(2)}</div>
-        <div class="totali">RPD attuale: € ${rpdAttuale.toFixed(2)}</div>
-        </body>
-        </html>`;
-
-      const win = window.open("", "_blank");
-      win.document.write(html);
-      win.document.close();
-      win.focus();
-      win.print();
-      // win.close();  // opzionale se vuoi chiudere la finestra dopo la stampa
+      // Calcolo percentuale provvigione totale in base a RPD
+      const percProvvTotale = calcolaPercentualeProvv(totaleRPD);
+      document.getElementById('provvPercentuale').textContent = `Provvigione attuale: ${percProvvTotale}%`;
     }
 
-    // Grafico lineare RPD
-    let chart = null;
-    function aggiornaGrafico(contratti) {
-      const ctx = document.getElementById("graficoProvvigioni").getContext("2d");
-
+    // Aggiorna grafico
+    function aggiornaGrafico() {
+      const ctx = document.getElementById('graficoRPD').getContext('2d');
       const labels = contratti.map(c => c.contratto);
-      const dataRPD = contratti.map(c => calcolaRPD(c.lordo, c.giorni));
+      const datiRPD = contratti.map(c => c.rpd);
 
-      if (chart) chart.destroy();
-
-      chart = new Chart(ctx, {
+      if (chartRPD) {
+        chartRPD.destroy();
+      }
+      chartRPD = new Chart(ctx, {
         type: 'line',
         data: {
           labels: labels,
           datasets: [{
             label: 'RPD €',
-            data: dataRPD,
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59,130,246,0.2)',
+            data: datiRPD,
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.3)',
             fill: true,
             tension: 0.3,
             pointRadius: 5,
@@ -384,26 +311,82 @@
           scales: {
             y: {
               beginAtZero: true,
-              ticks: {
-                callback: val => `€ ${val}`
+              title: {
+                display: true,
+                text: 'RPD (€)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Contratti'
               }
             }
-          },
-          plugins: {
-            legend: { display: true, position: "top" },
-            tooltip: { enabled: true }
           }
         }
       });
     }
 
-    // Blocca input contratto a numeri
-    inputContratto.addEventListener("input", () => {
-      inputContratto.value = inputContratto.value.replace(/\D/g, '');
-    });
+    // Esporta PDF (solo la tabella contratti e totali)
+    function stampaContratti() {
+      const w = window.open('', '', 'width=900,height=700');
+      const style = `
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; color:#1e293b; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px;}
+          th, td { border: 1px solid #ccc; padding: 8px; text-align: center;}
+          th { background: #f3f4f6; }
+          h2 { text-align:center; margin-bottom: 20px;}
+          #totali {font-weight: bold; margin-bottom: 10px;}
+        </style>`;
+      const html = `
+        <html>
+          <head><title>Contratti e Provvigioni</title>${style}</head>
+          <body>
+            <h2>Contratti e Provvigioni</h2>
+            <div id="totali">
+              ${document.getElementById('totaleContratti').outerHTML}
+              ${document.getElementById('totaleGiorni').outerHTML}
+              ${document.getElementById('totaleProvvigioni').outerHTML}
+              ${document.getElementById('rpdTotale').outerHTML}
+              ${document.getElementById('provvPercentuale').outerHTML}
+            </div>
+            ${document.querySelector('table').outerHTML}
+          </body>
+        </html>`;
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+      w.print();
+      w.close();
+    }
+
+    // Conferma eliminazione
+    function chiediEliminazione(idx) {
+      contrattoDaEliminare = idx;
+      document.getElementById('modalConferma').classList.remove('hidden');
+    }
+
+    // Chiudi modal eliminazione
+    function chiudiModal() {
+      contrattoDaEliminare = null;
+      document.getElementById('modalConferma').classList.add('hidden');
+    }
+
+    // Conferma eliminazione contratto
+    document.getElementById('btnConfermaEliminazione').onclick = function() {
+      if (contrattoDaEliminare !== null) {
+        contratti.splice(contrattoDaEliminare, 1);
+        aggiornaUI();
+        chiudiModal();
+      }
+    };
 
     // Inizializza
-    aggiornaTabella();
+    window.onload = function() {
+      popolaMeseAnno();
+      aggiornaUI();
+    };
   </script>
 </body>
 </html>
