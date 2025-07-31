@@ -115,6 +115,147 @@
     </div>
   </div>
 
-  <script src="js/contratti.js"></script>
+  <script>
+    const meseSelect = document.getElementById("mese");
+    const annoSelect = document.getElementById("anno");
+    const oggi = new Date();
+    const mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+
+    mesi.forEach((mese, i) => meseSelect.innerHTML += `<option value="${i + 1}">${mese}</option>`);
+    for (let y = oggi.getFullYear() - 2; y <= oggi.getFullYear() + 2; y++) {
+      annoSelect.innerHTML += `<option value="${y}">${y}</option>`;
+    }
+    meseSelect.value = oggi.getMonth() + 1;
+    annoSelect.value = oggi.getFullYear();
+
+    function getKey() {
+      return `contratti_${annoSelect.value}_${meseSelect.value}`;
+    }
+    function getContratti() {
+      return JSON.parse(localStorage.getItem(getKey())) || [];
+    }
+    function setContratti(c) {
+      localStorage.setItem(getKey(), JSON.stringify(c));
+    }
+
+    function aggiornaTabella() {
+      const contratti = getContratti();
+      const tbody = document.getElementById("tabella");
+      tbody.innerHTML = "";
+      let sommaNetto = 0;
+      let sommaGiorni = 0;
+      let etichette = [], valori = [];
+
+      contratti.forEach(c => {
+        sommaNetto += c.netto;
+        sommaGiorni += c.giorni;
+      });
+
+      const rpdTotale = sommaGiorni > 0 ? sommaNetto / sommaGiorni : 0;
+      const percentuale = rpdTotale >= 20 ? 0.08 : rpdTotale >= 18 ? 0.06 : 0.03;
+      let totaleProvv = 0;
+
+      contratti.forEach((c, i) => {
+        const rpd = c.netto / c.giorni;
+        const provvigione = c.netto * percentuale;
+        totaleProvv += provvigione;
+
+        etichette.push(c.codice);
+        valori.push(provvigione);
+
+        tbody.innerHTML += `<tr>
+          <td>${c.codice}</td>
+          <td>€ ${c.netto.toFixed(2)}</td>
+          <td>${c.giorni}</td>
+          <td>€ ${rpd.toFixed(2)}</td>
+          <td>€ ${provvigione.toFixed(2)}</td>
+          <td><button onclick="confermaElimina(${i})">🗑️</button></td>
+        </tr>`;
+      });
+
+      document.getElementById("totaleContratti").textContent = `Totale Contratti: ${contratti.length}`;
+      document.getElementById("totaleGiorni").textContent = `Totale Giorni: ${sommaGiorni}`;
+      document.getElementById("totaleProvvigioni").textContent = `Totale Provvigioni: € ${totaleProvv.toFixed(2)}`;
+      document.getElementById("rpdTotale").textContent = `RPD Totale: € ${rpdTotale.toFixed(2)} (Provvigione ${(percentuale * 100).toFixed(0)}%)`;
+
+      aggiornaGrafico(etichette, valori);
+    }
+
+    function aggiungiContratto() {
+      const codice = document.getElementById("contratto").value.trim();
+      const lordo = parseFloat(document.getElementById("lordo").value);
+      const giorni = parseInt(document.getElementById("giorni").value);
+      const netto = lordo * 0.78;
+
+      if (!codice || isNaN(netto) || isNaN(giorni) || giorni <= 0) {
+        alert("Inserisci tutti i campi correttamente.");
+        return;
+      }
+
+      const contratti = getContratti();
+      contratti.push({ codice, netto, giorni });
+      setContratti(contratti);
+      aggiornaTabella();
+
+      document.getElementById("contratto").value = "";
+      document.getElementById("lordo").value = "";
+      document.getElementById("giorni").value = "";
+
+      document.getElementById("salvataggioOK").textContent = "✅ Contratto salvato con successo!";
+      setTimeout(() => document.getElementById("salvataggioOK").textContent = "", 2500);
+    }
+
+    let indexDaEliminare = null;
+    function confermaElimina(index) {
+      indexDaEliminare = index;
+      document.getElementById("modalConferma").classList.remove("hidden");
+    }
+    function chiudiModal() {
+      document.getElementById("modalConferma").classList.add("hidden");
+    }
+    document.getElementById("btnConfermaEliminazione").onclick = function () {
+      if (indexDaEliminare !== null) {
+        const contratti = getContratti();
+        contratti.splice(indexDaEliminare, 1);
+        setContratti(contratti);
+        aggiornaTabella();
+        chiudiModal();
+      }
+    };
+
+    function aggiornaGrafico(etichette, valori) {
+      const ctx = document.getElementById("graficoProvvigioni").getContext("2d");
+      if (window.myChart) window.myChart.destroy();
+      window.myChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: etichette,
+          datasets: [{
+            label: "Provvigioni €",
+            data: valori,
+            backgroundColor: "#3b82f6"
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function stampaContratti() {
+      const sezione = document.getElementById("sezioneTabella").innerHTML;
+      const win = window.open("", "", "height=700,width=900");
+      win.document.write('<html><head><title>Contratti</title><link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"></head><body>');
+      win.document.write(sezione);
+      win.document.write('</body></html>');
+      win.document.close();
+      win.print();
+    }
+
+    meseSelect.addEventListener("change", aggiornaTabella);
+    annoSelect.addEventListener("change", aggiornaTabella);
+    aggiornaTabella();
+  </script>
 </body>
 </html>
