@@ -1,3 +1,4 @@
+<!-- 🔥 INIZIO -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -5,11 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Calcolo Provvigioni</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <style>
     body {
       background: #f1f5f9;
     }
+
     @media (prefers-color-scheme: dark) {
       body {
         background: #111827;
@@ -29,18 +30,18 @@
     }
   </style>
 </head>
-<body class="p-4 text-gray-800 text-sm sm:text-base">
+<body class="p-4 text-gray-800">
   <div class="max-w-2xl mx-auto space-y-6">
 
-    <!-- PDF export -->
+    <!-- 🔘 Pulsante PDF -->
     <div class="text-right">
-      <button onclick="window.print()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition">
-        <i class="fa-solid fa-file-pdf mr-1"></i>Esporta in PDF
+      <button onclick="window.print()" class="bg-green-600 text-white px-4 py-2 rounded-md">
+        📄 Esporta in PDF
       </button>
     </div>
 
-    <!-- Selezione mese/anno -->
-    <div class="bg-white p-4 rounded-2xl shadow space-y-2">
+    <!-- 🔢 Selezione mese/anno -->
+    <div class="bg-white p-4 rounded-2xl shadow">
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label for="mese" class="font-semibold">Mese</label>
@@ -53,47 +54,37 @@
       </div>
     </div>
 
-    <!-- Inserimento contratto -->
-    <div class="bg-white p-4 rounded-2xl shadow space-y-3">
-      <h2 class="text-xl font-bold mb-2">Calcolo Provvigioni</h2>
-      <div>
-        <label class="font-semibold">Numero Contratto</label>
-        <input type="text" id="contratto" class="w-full p-2 border rounded-md" oninput="prefissoContratto()">
-      </div>
+    <!-- 🧮 Calcolo -->
+    <div class="bg-white p-4 rounded-2xl shadow">
+      <h2 class="text-xl font-bold mb-4">Calcolo Provvigioni</h2>
+      <label class="font-semibold">Numero Contratto</label>
+      <input type="text" id="contratto" class="w-full p-2 border rounded-md" oninput="prefissoContratto()">
 
-      <div>
-        <label class="font-semibold">Fatturato Lordo &euro;</label>
-        <input type="number" id="lordo" class="w-full p-2 border rounded-md">
-      </div>
+      <label class="font-semibold mt-4">Fatturato Lordo &euro;</label>
+      <input type="number" id="lordo" class="w-full p-2 border rounded-md" oninput="calcolaNetto()">
 
-      <div>
-        <label class="font-semibold">Giorni Contratto</label>
-        <input type="number" id="giorni" class="w-full p-2 border rounded-md">
-      </div>
+      <label class="font-semibold mt-4">Giorni Contratto</label>
+      <input type="number" id="giorni" class="w-full p-2 border rounded-md">
 
-      <button onclick="aggiungiContratto()" class="bg-blue-600 text-white py-2 rounded-md w-full hover:bg-blue-700 transition">
-        <i class="fa-solid fa-plus-circle mr-1"></i>Aggiungi Contratto
-      </button>
+      <button onclick="aggiungiContratto()" class="mt-6 bg-blue-600 text-white py-2 rounded-md w-full">Calcola e Salva</button>
     </div>
 
-    <!-- Tabella contratti -->
+    <!-- 📋 Contratti -->
     <div class="bg-white p-4 rounded-2xl shadow">
       <h3 class="text-lg font-semibold mb-2">Contratti Salvati</h3>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm text-center">
-          <thead class="bg-gray-100">
-            <tr>
-              <th>Contratto</th>
-              <th>Netto &euro;</th>
-              <th>Giorni</th>
-              <th>RPD &euro;</th>
-              <th>Provv. &euro;</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="tabella"></tbody>
-        </table>
-      </div>
+      <table class="w-full text-sm text-center">
+        <thead class="bg-gray-100">
+          <tr>
+            <th>Contratto</th>
+            <th>Netto &euro;</th>
+            <th>Giorni</th>
+            <th>RPD &euro;</th>
+            <th>Provv. &euro;</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tabella"></tbody>
+      </table>
       <div class="mt-4 text-right font-semibold" id="totaleProvvigioni"></div>
       <div class="text-right font-semibold" id="rpdTotale"></div>
     </div>
@@ -159,11 +150,7 @@
             <td>${c.giorni}</td>
             <td>&euro; ${rpd.toFixed(2)}</td>
             <td>&euro; ${provvigione.toFixed(2)}</td>
-            <td>
-              <button onclick="cancellaContratto(${i})" class="text-red-500 hover:text-red-700">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </td>
+            <td><button onclick="cancellaContratto(${i})">🗑️</button></td>
           </tr>`;
       });
 
@@ -192,6 +179,10 @@
       document.getElementById("giorni").value = "";
     }
 
+    function calcolaNetto() {
+      // ora fa tutto in background, non mostra nulla
+    }
+
     function prefissoContratto() {
       const input = document.getElementById("contratto");
       const val = input.value;
@@ -215,3 +206,4 @@
   </script>
 </body>
 </html>
+<!-- 🔥 FINE -->
