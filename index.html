@@ -52,7 +52,6 @@
             <th>Netto &euro;</th>
             <th>Giorni</th>
             <th>RPD &euro;</th>
-            <th>% Provv.</th>
             <th>Provv. &euro;</th>
             <th></th>
           </tr>
@@ -89,27 +88,33 @@
       localStorage.setItem(getKey(), JSON.stringify(c));
     }
 
-    function calcolaProvvigione(rpd, netto) {
-      let perc = 0.03;
-      if (rpd >= 20) perc = 0.08;
-      else if (rpd >= 17.99) perc = 0.06;
-      return { valore: (netto * perc).toFixed(2), percentuale: (perc * 100).toFixed(0) + "%" };
+    function getPercentualeProvvigione(rpdTotale) {
+      if (rpdTotale >= 20) return 0.08;
+      if (rpdTotale >= 17.99) return 0.06;
+      return 0.03;
     }
 
     function aggiornaTabella() {
       const contratti = getContratti();
       const tbody = document.getElementById("tabella");
       tbody.innerHTML = "";
-      let totaleProvv = 0;
+
       let sommaNetto = 0;
       let sommaGiorni = 0;
 
-      contratti.forEach((c, i) => {
-        const rpd = (c.netto / c.giorni);
-        const { valore, percentuale } = calcolaProvvigione(rpd, c.netto);
-        totaleProvv += parseFloat(valore);
+      contratti.forEach(c => {
         sommaNetto += c.netto;
         sommaGiorni += c.giorni;
+      });
+
+      let rpdTotale = sommaGiorni > 0 ? sommaNetto / sommaGiorni : 0;
+      let percentuale = getPercentualeProvvigione(rpdTotale);
+      let totaleProvv = 0;
+
+      contratti.forEach((c, i) => {
+        const rpd = c.netto / c.giorni;
+        const provvigione = c.netto * percentuale;
+        totaleProvv += provvigione;
 
         tbody.innerHTML += `
           <tr>
@@ -117,19 +122,13 @@
             <td>&euro; ${c.netto.toFixed(2)}</td>
             <td>${c.giorni}</td>
             <td>&euro; ${rpd.toFixed(2)}</td>
-            <td>${percentuale}</td>
-            <td>&euro; ${valore}</td>
+            <td>&euro; ${provvigione.toFixed(2)}</td>
             <td><button onclick="cancellaContratto(${i})">🗑️</button></td>
           </tr>`;
       });
 
       document.getElementById("totaleProvvigioni").textContent = `Totale Provvigioni: € ${totaleProvv.toFixed(2)}`;
-      if (sommaGiorni > 0) {
-        const rpdTotale = sommaNetto / sommaGiorni;
-        document.getElementById("rpdTotale").textContent = `RPD Totale: € ${rpdTotale.toFixed(2)}`;
-      } else {
-        document.getElementById("rpdTotale").textContent = "";
-      }
+      document.getElementById("rpdTotale").textContent = `RPD Totale: € ${rpdTotale.toFixed(2)} (Provvigione: ${(percentuale * 100).toFixed(0)}%)`;
     }
 
     function aggiungiContratto() {
