@@ -2,11 +2,10 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Calcolo Provvigioni</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     body {
       background: linear-gradient(to right, #fdfcfb, #e2d1c3);
@@ -23,16 +22,9 @@
       font-weight: 600;
       color: #374151;
     }
-    #salvataggioOK {
-      opacity: 0;
-      transition: opacity 0.7s ease-in-out;
-    }
-    #salvataggioOK.show {
-      opacity: 1;
-    }
-    input[readonly] {
-      background-color: #e5e7eb;
-      cursor: not-allowed;
+    /* Pulsante PDF */
+    button {
+      transition: background-color 0.3s ease;
     }
   </style>
 </head>
@@ -41,8 +33,8 @@
     <!-- Intestazione -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
       <div class="text-gray-700 font-semibold text-base space-y-1">
-        <div id="totaleContratti"></div>
-        <div id="totaleGiorni"></div>
+        <div id="totaleContratti">Contratti salvati: 0</div>
+        <div id="totaleGiorni">Totale giorni: 0</div>
       </div>
       <div class="space-x-2 mt-4 sm:mt-0">
         <button onclick="stampaContratti()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl shadow">
@@ -68,19 +60,19 @@
     <!-- Inserimento Contratto -->
     <div class="bg-white p-6 rounded-2xl shadow-xl">
       <h2 class="text-2xl font-bold mb-4 text-gray-800">Inserisci Dati Contratto</h2>
-      <div id="erroreInserimento" class="text-red-600 font-semibold mb-3"></div>
+      <div id="erroreInserimento" class="text-red-600 mb-3"></div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div>
           <label class="form-label">Numero Contratto</label>
-          <input type="text" id="contratto" readonly />
+          <input type="text" id="contratto" class="w-full p-2 border border-gray-300 rounded-md" inputmode="numeric" autocomplete="off" />
         </div>
         <div>
           <label class="form-label">Fatturato Lordo €</label>
-          <input type="number" id="lordo" inputmode="numeric" min="0" step="0.01" class="w-full p-2 border border-gray-300 rounded-md" />
+          <input type="number" id="lordo" inputmode="decimal" min="0" step="0.01" class="w-full p-2 border border-gray-300 rounded-md" autocomplete="off" />
         </div>
         <div>
           <label class="form-label">Giorni Contratto</label>
-          <input type="number" id="giorni" inputmode="numeric" min="1" max="365" class="w-full p-2 border border-gray-300 rounded-md" />
+          <input type="number" id="giorni" inputmode="numeric" min="1" max="365" class="w-full p-2 border border-gray-300 rounded-md" autocomplete="off" />
         </div>
       </div>
       <button onclick="aggiungiContratto()" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl shadow-lg text-lg">Salva Contratto</button>
@@ -111,8 +103,8 @@
 
     <!-- Grafico -->
     <div class="bg-white p-6 rounded-2xl shadow-xl">
-      <h3 class="text-xl font-semibold mb-4 text-gray-800">Andamento RPD per Contratto</h3>
-      <canvas id="graficoProvvigioni" height="120"></canvas>
+      <h3 class="text-xl font-semibold mb-4 text-gray-800">Andamento RPD</h3>
+      <canvas id="graficoProvvigioni" height="100"></canvas>
     </div>
   </div>
 
@@ -127,302 +119,311 @@
     </div>
   </div>
 
-  <script>
-    const mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
-    const meseSelect = document.getElementById("mese");
-    const annoSelect = document.getElementById("anno");
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
-    const oggi = new Date();
-    mesi.forEach((mese, i) => {
-      meseSelect.innerHTML += `<option value="${i + 1}">${mese}</option>`;
+<script>
+  // Variabili DOM
+  const meseSelect = document.getElementById("mese");
+  const annoSelect = document.getElementById("anno");
+  const inputContratto = document.getElementById("contratto");
+  const inputLordo = document.getElementById("lordo");
+  const inputGiorni = document.getElementById("giorni");
+  const tabella = document.getElementById("tabella");
+  const totaleContrattiDisplay = document.getElementById("totaleContratti");
+  const totaleGiorniDisplay = document.getElementById("totaleGiorni");
+  const totaleProvvigioniDisplay = document.getElementById("totaleProvvigioni");
+  const rpdTotaleDisplay = document.getElementById("rpdTotale");
+  const erroreInserimento = document.getElementById("erroreInserimento");
+  const salvataggioOK = document.getElementById("salvataggioOK");
+  const modalConferma = document.getElementById("modalConferma");
+  const btnConfermaEliminazione = document.getElementById("btnConfermaEliminazione");
+
+  // Dati mese/anno
+  const mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+  const oggi = new Date();
+
+  // Grafico Chart.js
+  let chart;
+
+  // Inizializzazione select mese e anno
+  function initDateSelectors() {
+    mesi.forEach((m, i) => {
+      const opt = document.createElement("option");
+      opt.value = i + 1;
+      opt.textContent = m;
+      meseSelect.appendChild(opt);
     });
-    for (let y = oggi.getFullYear() - 2; y <= oggi.getFullYear() + 2; y++) {
-      annoSelect.innerHTML += `<option value="${y}">${y}</option>`;
+    for(let y = oggi.getFullYear() - 2; y <= oggi.getFullYear() + 2; y++) {
+      const opt = document.createElement("option");
+      opt.value = y;
+      opt.textContent = y;
+      annoSelect.appendChild(opt);
     }
     meseSelect.value = oggi.getMonth() + 1;
     annoSelect.value = oggi.getFullYear();
+  }
 
-    // Evento cambio mese/anno: aggiorna tabella e nuovo codice contratto
-    meseSelect.addEventListener('change', caricaDati);
-    annoSelect.addEventListener('change', caricaDati);
+  // Key storage per mese e anno
+  function getKey() {
+    return `contratti_${annoSelect.value}_${meseSelect.value}`;
+  }
 
-    function getKey() {
-      return `contratti_${annoSelect.value}_${meseSelect.value}`;
-    }
+  // Funzioni storage locale
+  function getContratti() {
+    const key = getKey();
+    const dati = localStorage.getItem(key);
+    return dati ? JSON.parse(dati) : [];
+  }
 
-    function getContratti() {
-      return JSON.parse(localStorage.getItem(getKey())) || [];
-    }
+  function saveContratti(contratti) {
+    localStorage.setItem(getKey(), JSON.stringify(contratti));
+  }
 
-    function setContratti(c) {
-      localStorage.setItem(getKey(), JSON.stringify(c));
-    }
+  // Calcoli su netto, RPD, provvigione
+  // RPD = (lordo / giorni)
+  // netto = lordo * 0.85 (esempio)
+  // provvigione = netto * 0.10 (esempio)
+  function calcolaNetto(lordo) {
+    return lordo * 0.85;
+  }
+  function calcolaRPD(lordo, giorni) {
+    return giorni ? lordo / giorni : 0;
+  }
+  function calcolaProvvigione(netto) {
+    return netto * 0.10;
+  }
 
-    function getPercentualeProvvigione(rpdTotale) {
-      if (rpdTotale >= 20) return 0.08;
-      if (rpdTotale >= 18) return 0.06;
-      return 0.03;
-    }
+  // Aggiorna la tabella e valori
+  function aggiornaTabella() {
+    const contratti = getContratti();
+    tabella.innerHTML = "";
 
-    let grafico = null;
-    let indiceEliminazione = null;
+    let totaleProvvigioni = 0;
+    let totaleGiorni = 0;
 
-    function caricaDati() {
-      aggiornaTabella();
-      generaNumeroContratto();
-      nascondiMessaggioSalvataggio();
-    }
+    contratti.forEach((c, i) => {
+      const netto = calcolaNetto(c.lordo);
+      const rpd = calcolaRPD(c.lordo, c.giorni);
+      const provvigione = calcolaProvvigione(netto);
 
-    function generaNumeroContratto() {
-      const contratti = getContratti();
-      // Trova il più alto numero progressivo già usato e incrementa
-      // Il formato è 25-bri-XXXX, estraiamo XXXX
-      let maxNum = 0;
-      contratti.forEach(c => {
-        let numStr = c.codice.split('-')[2];
-        let num = parseInt(numStr);
-        if (!isNaN(num) && num > maxNum) maxNum = num;
-      });
-      let prossimoNum = maxNum + 1;
-      // Formatta con 4 cifre, zeri davanti
-      let prossimoCodice = `25-bri-${prossimoNum.toString().padStart(4, '0')}`;
-      document.getElementById('contratto').value = prossimoCodice;
-    }
+      totaleProvvigioni += provvigione;
+      totaleGiorni += c.giorni;
 
-    function aggiornaTabella() {
-      const contratti = getContratti();
-      const tbody = document.getElementById("tabella");
-      tbody.innerHTML = "";
-
-      let sommaNetto = 0;
-      let sommaGiorni = 0;
-
-      contratti.forEach(c => {
-        sommaNetto += c.netto;
-        sommaGiorni += c.giorni;
-      });
-
-      let rpdTotale = sommaGiorni > 0 ? sommaNetto / sommaGiorni : 0;
-      let percentuale = getPercentualeProvvigione(rpdTotale);
-      let totaleProvv = 0;
-
-      contratti.forEach((c, i) => {
-        const rpd = c.netto / c.giorni;
-        const provvigione = c.netto * percentuale;
-        totaleProvv += provvigione;
-
-        tbody.innerHTML += `
-          <tr>
-            <td>${c.codice}</td>
-            <td>€ ${c.netto.toFixed(2)}</td>
-            <td>${c.giorni}</td>
-            <td>€ ${rpd.toFixed(2)}</td>
-            <td>€ ${provvigione.toFixed(2)}</td>
-            <td>
-              <button onclick="richiediEliminazione(${i})" class="text-red-600 hover:text-red-800 font-semibold">✖</button>
-            </td>
-          </tr>`;
-      });
-
-      document.getElementById("totaleContratti").textContent = `Totale contratti: ${contratti.length}`;
-      document.getElementById("totaleGiorni").textContent = `Totale giorni: ${sommaGiorni}`;
-      document.getElementById("totaleProvvigioni").textContent = `Totale provvigioni: € ${totaleProvv.toFixed(2)}`;
-      document.getElementById("rpdTotale").textContent = `RPD medio: € ${rpdTotale.toFixed(2)}`;
-
-      aggiornaGrafico(contratti);
-    }
-
-    function aggiornaGrafico(contratti) {
-      const labels = contratti.map(c => c.codice);
-      const dataRpd = contratti.map(c => c.netto / c.giorni);
-
-      const ctx = document.getElementById('graficoProvvigioni').getContext('2d');
-
-      if (grafico) grafico.destroy();
-
-      grafico = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'RPD (€ per giorno)',
-            data: dataRpd,
-            borderColor: '#2563eb',
-            backgroundColor: 'rgba(37, 99, 235, 0.2)',
-            fill: true,
-            tension: 0.3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            borderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: 'RPD (€)'
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: 'Numero Contratto'
-              }
-            }
-          }
-        }
-      });
-    }
-
-    function aggiungiContratto() {
-      const contratto = document.getElementById("contratto").value;
-      const lordoInput = document.getElementById("lordo");
-      const giorniInput = document.getElementById("giorni");
-      const errore = document.getElementById("erroreInserimento");
-
-      errore.textContent = "";
-
-      const lordo = parseFloat(lordoInput.value);
-      const giorni = parseInt(giorniInput.value);
-
-      if (!contratto) {
-        errore.textContent = "Numero contratto non valido.";
-        return;
-      }
-      if (isNaN(lordo) || lordo <= 0) {
-        errore.textContent = "Inserisci un valore valido per il fatturato lordo.";
-        lordoInput.focus();
-        return;
-      }
-      if (isNaN(giorni) || giorni < 1 || giorni > 365) {
-        errore.textContent = "Inserisci un numero di giorni tra 1 e 365.";
-        giorniInput.focus();
-        return;
-      }
-
-      let contratti = getContratti();
-
-      // Controlla che il codice contratto non sia duplicato (caso raro ma sicuro)
-      if (contratti.some(c => c.codice === contratto)) {
-        errore.textContent = "Il numero contratto esiste già.";
-        return;
-      }
-
-      // Il netto è calcolato con lordo * 0.90 (ipotetico, puoi modificare se vuoi)
-      const netto = lordo * 0.90;
-
-      contratti.push({ codice: contratto, netto, giorni });
-
-      setContratti(contratti);
-
-      lordoInput.value = "";
-      giorniInput.value = "";
-
-      mostraMessaggioSalvataggio("Contratto salvato con successo.");
-
-      caricaDati();
-    }
-
-    function mostraMessaggioSalvataggio(msg) {
-      const el = document.getElementById("salvataggioOK");
-      el.textContent = msg;
-      el.classList.add("show");
-      setTimeout(() => {
-        el.classList.remove("show");
-        el.textContent = "";
-      }, 3000);
-    }
-    function nascondiMessaggioSalvataggio() {
-      const el = document.getElementById("salvataggioOK");
-      el.classList.remove("show");
-      el.textContent = "";
-    }
-
-    // Funzioni eliminazione
-    function richiediEliminazione(indice) {
-      indiceEliminazione = indice;
-      document.getElementById("modalConferma").classList.remove("hidden");
-    }
-    function chiudiModal() {
-      indiceEliminazione = null;
-      document.getElementById("modalConferma").classList.add("hidden");
-    }
-    document.getElementById("btnConfermaEliminazione").addEventListener('click', () => {
-      if (indiceEliminazione !== null) {
-        let contratti = getContratti();
-        contratti.splice(indiceEliminazione, 1);
-        setContratti(contratti);
-        chiudiModal();
-        caricaDati();
-      }
+      const tr = document.createElement("tr");
+      tr.classList.add("border-b");
+      tr.innerHTML = `
+        <td>${c.contratto}</td>
+        <td>€ ${netto.toFixed(2)}</td>
+        <td>${c.giorni}</td>
+        <td>€ ${rpd.toFixed(2)}</td>
+        <td>€ ${provvigione.toFixed(2)}</td>
+        <td><button class="text-red-600 hover:text-red-800 font-semibold" onclick="chiediElimina(${i})">✖</button></td>
+      `;
+      tabella.appendChild(tr);
     });
 
-    // Esporta PDF solo tabella contratti e provvigioni
-    function stampaContratti() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+    totaleContrattiDisplay.textContent = `Contratti salvati: ${contratti.length}`;
+    totaleGiorniDisplay.textContent = `Totale giorni: ${totaleGiorni}`;
+    totaleProvvigioniDisplay.textContent = `Totale provvigioni: € ${totaleProvvigioni.toFixed(2)}`;
+    rpdTotaleDisplay.textContent = "";
 
-      const contratti = getContratti();
-      if (contratti.length === 0) {
-        alert("Nessun contratto da esportare.");
-        return;
-      }
+    aggiornaGrafico(contratti);
+  }
 
-      doc.setFontSize(16);
-      doc.text("Elenco Contratti - " + mesi[parseInt(meseSelect.value) - 1] + " " + annoSelect.value, 14, 15);
+  // Controlla e aggiungi contratto
+  function aggiungiContratto() {
+    erroreInserimento.textContent = "";
+    salvataggioOK.textContent = "";
 
-      let y = 25;
+    const contrattoVal = inputContratto.value.trim();
+    const lordoVal = parseFloat(inputLordo.value);
+    const giorniVal = parseInt(inputGiorni.value);
 
-      // Intestazione tabella
-      doc.setFontSize(12);
-      doc.text("Contratto", 14, y);
-      doc.text("Netto (€)", 60, y);
-      doc.text("Giorni", 100, y);
-      doc.text("RPD (€)", 130, y);
-      doc.text("Provv. (€)", 160, y);
-      y += 6;
-
-      let sommaNetto = 0;
-      let sommaGiorni = 0;
-      contratti.forEach(c => {
-        sommaNetto += c.netto;
-        sommaGiorni += c.giorni;
-      });
-      let rpdTotale = sommaGiorni > 0 ? sommaNetto / sommaGiorni : 0;
-      let percentuale = getPercentualeProvvigione(rpdTotale);
-
-      contratti.forEach(c => {
-        let rpd = c.netto / c.giorni;
-        let provv = c.netto * percentuale;
-
-        doc.text(c.codice, 14, y);
-        doc.text(c.netto.toFixed(2), 60, y);
-        doc.text(c.giorni.toString(), 100, y);
-        doc.text(rpd.toFixed(2), 130, y);
-        doc.text(provv.toFixed(2), 160, y);
-        y += 6;
-
-        if (y > 280) {
-          doc.addPage();
-          y = 20;
-        }
-      });
-
-      // Totali sotto tabella
-      y += 8;
-      doc.setFontSize(14);
-      doc.text(`Totale Provvigioni: € ${(sommaNetto * percentuale).toFixed(2)}`, 14, y);
-      doc.text(`RPD medio: € ${rpdTotale.toFixed(2)}`, 14, y + 8);
-
-      doc.save(`Contratti_${annoSelect.value}_${meseSelect.value}.pdf`);
+    // Controlli
+    if (!contrattoVal.startsWith("25-bri-")) {
+      erroreInserimento.textContent = "Il numero contratto deve iniziare con '25-bri-'";
+      return;
+    }
+    const numeroParte = contrattoVal.slice(7);
+    if (!/^\d+$/.test(numeroParte)) {
+      erroreInserimento.textContent = "Dopo '25-bri-' devi inserire solo numeri.";
+      return;
+    }
+    if (isNaN(lordoVal) || lordoVal <= 0) {
+      erroreInserimento.textContent = "Inserisci un valore lordo valido (> 0).";
+      return;
+    }
+    if (isNaN(giorniVal) || giorniVal < 1 || giorniVal > 365) {
+      erroreInserimento.textContent = "Inserisci un numero giorni valido (1-365).";
+      return;
     }
 
-    // Avvia caricamento dati iniziale
-    caricaDati();
+    const contratti = getContratti();
 
-  </script>
+    // Evita duplicati contratto
+    if (contratti.some(c => c.contratto === contrattoVal)) {
+      erroreInserimento.textContent = "Questo numero contratto è già stato inserito.";
+      return;
+    }
+
+    contratti.push({
+      contratto: contrattoVal,
+      lordo: lordoVal,
+      giorni: giorniVal
+    });
+    saveContratti(contratti);
+
+    aggiornaTabella();
+
+    // Pulisci input mantenendo prefisso
+    inputContratto.value = "25-bri-";
+    inputLordo.value = "";
+    inputGiorni.value = "";
+
+    salvataggioOK.textContent = "Contratto salvato con successo!";
+    setTimeout(() => salvataggioOK.textContent = "", 3000);
+  }
+
+  // Gestione eliminazione
+  let indiceDaEliminare = null;
+  function chiediElimina(index) {
+    indiceDaEliminare = index;
+    modalConferma.classList.remove("hidden");
+  }
+  function chiudiModal() {
+    modalConferma.classList.add("hidden");
+    indiceDaEliminare = null;
+  }
+  btnConfermaEliminazione.addEventListener("click", () => {
+    if (indiceDaEliminare !== null) {
+      const contratti = getContratti();
+      contratti.splice(indiceDaEliminare, 1);
+      saveContratti(contratti);
+      aggiornaTabella();
+      chiudiModal();
+    }
+  });
+
+  // Esporta PDF solo la tabella contratti con provvigione e giorni
+  async function stampaContratti() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    const contratti = getContratti();
+    if (contratti.length === 0) {
+      alert("Nessun contratto da esportare!");
+      return;
+    }
+
+    doc.setFontSize(18);
+    doc.text("Contratti e Provvigioni", 14, 22);
+
+    // Header tabella
+    const header = ["Contratto", "Netto €", "Giorni", "RPD €", "Provv. €"];
+    const rows = [];
+
+    contratti.forEach(c => {
+      const netto = calcolaNetto(c.lordo);
+      const rpd = calcolaRPD(c.lordo, c.giorni);
+      const provvigione = calcolaProvvigione(netto);
+      rows.push([
+        c.contratto,
+        netto.toFixed(2),
+        c.giorni,
+        rpd.toFixed(2),
+        provvigione.toFixed(2)
+      ]);
+    });
+
+    // Usa autotable (se disponibile) oppure tabella semplice
+    if (doc.autoTable) {
+      doc.autoTable({
+        startY: 30,
+        head: [header],
+        body: rows,
+        styles: { fontSize: 10 }
+      });
+    } else {
+      // fallback senza autotable (più basico)
+      let y = 30;
+      doc.setFontSize(12);
+      doc.text(header.join(" | "), 14, y);
+      y += 8;
+      rows.forEach(row => {
+        doc.text(row.join(" | "), 14, y);
+        y += 7;
+      });
+    }
+
+    doc.save("contratti_provvigioni.pdf");
+  }
+
+  // Aggiorna il grafico lineare su RPD
+  function aggiornaGrafico(contratti) {
+    const labels = contratti.map(c => c.contratto);
+    const dataRPD = contratti.map(c => calcolaRPD(c.lordo, c.giorni).toFixed(2));
+
+    const ctx = document.getElementById("graficoProvvigioni").getContext("2d");
+
+    if (chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'RPD €',
+          data: dataRPD,
+          fill: false,
+          borderColor: 'rgb(37, 99, 235)',
+          tension: 0.2,
+          pointBackgroundColor: 'rgb(37, 99, 235)',
+          pointRadius: 5,
+          pointHoverRadius: 7,
+        }]
+      },
+      options: {
+        responsive: true,
+        interaction: {
+          mode: 'nearest',
+          intersect: false
+        },
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+
+  // Prefisso automatico per numero contratto
+  window.addEventListener("DOMContentLoaded", () => {
+    if (!inputContratto.value.startsWith("25-bri-")) {
+      inputContratto.value = "25-bri-";
+    }
+  });
+  inputContratto.addEventListener("input", () => {
+    if (!inputContratto.value.startsWith("25-bri-")) {
+      inputContratto.value = "25-bri-";
+    }
+    // Limita la parte dopo prefisso a soli numeri
+    const parteNumerica = inputContratto.value.slice(7);
+    if (/[^0-9]/.test(parteNumerica)) {
+      inputContratto.value = "25-bri-" + parteNumerica.replace(/[^0-9]/g, "");
+    }
+  });
+
+  // Popola select e carica dati all'avvio
+  window.onload = () => {
+    initDateSelectors();
+    aggiornaTabella();
+  };
+
+  // Cambia dati quando cambia mese o anno
+  meseSelect.addEventListener("change", aggiornaTabella);
+  annoSelect.addEventListener("change", aggiornaTabella);
+
+</script>
 </body>
 </html>
