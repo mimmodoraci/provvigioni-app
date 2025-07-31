@@ -1,255 +1,390 @@
-<!DOCTYPE html>
+l<!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Registro Contratti</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calcolo Provvigioni</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(to right, #fdfcfb, #e2d1c3);
+      color: #1e293b;
+      font-family: 'Inter', sans-serif;
+    }
+    input:focus, select:focus {
+      outline: 2px solid #3b82f6;
+    }
+    th {
+      background-color: #f3f4f6;
+    }
+    .form-label {
+      font-weight: 600;
+      color: #374151;
+    }
+    #salvataggioOK {
+      opacity: 0;
+      transition: opacity 0.7s ease-in-out;
+    }
+    #salvataggioOK.show {
+      opacity: 1;
+    }
+    input[readonly] {
+      background-color: #e5e7eb;
+      cursor: not-allowed;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 p-4">
-    <h1 class="text-2xl font-bold mb-4">Registro Contratti</h1>
-    <div class="mb-4 flex gap-4">
-        <select id="mese" class="border border-gray-300 rounded p-2">
-            <!-- mesi -->
-            <option value="1">Gennaio</option>
-            <option value="2">Febbraio</option>
-            <option value="3">Marzo</option>
-            <option value="4">Aprile</option>
-            <option value="5">Maggio</option>
-            <option value="6">Giugno</option>
-            <option value="7">Luglio</option>
-            <option value="8">Agosto</option>
-            <option value="9">Settembre</option>
-            <option value="10">Ottobre</option>
-            <option value="11">Novembre</option>
-            <option value="12">Dicembre</option>
-        </select>
-        <select id="anno" class="border border-gray-300 rounded p-2">
-            <!-- anni -->
-            <option value="2023">2023</option>
-            <option value="2024" selected>2024</option>
-            <option value="2025">2025</option>
-            <option value="2026">2026</option>
-        </select>
+<body class="p-6">
+  <div class="max-w-5xl mx-auto space-y-8">
+    <!-- Intestazione -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+      <div class="text-gray-700 font-semibold text-base space-y-1">
+        <div id="totaleContratti"></div>
+        <div id="totaleGiorni"></div>
+      </div>
+      <div class="space-x-2 mt-4 sm:mt-0">
+        <button onclick="stampaContratti()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl shadow">
+          📄 Esporta PDF Contratti
+        </button>
+      </div>
     </div>
 
-    <form id="formContratto" class="bg-white p-4 rounded shadow mb-6">
-        <div class="mb-2">
-            <label for="numeroContratto" class="block font-semibold">Numero Contratto</label>
-            <input
-                id="numeroContratto"
-                name="numeroContratto"
-                type="text"
-                pattern="25-BRI-\d*"
-                inputmode="numeric"
-                placeholder="25-BRI-"
-                class="border border-gray-300 rounded p-2 w-full"
-                required
-                value="25-BRI-"
-            />
+    <!-- Selezione mese/anno -->
+    <div class="bg-white p-6 rounded-2xl shadow-xl">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div>
+          <label for="mese" class="form-label">Mese</label>
+          <select id="mese" class="mt-1 block w-full p-2 border border-gray-300 rounded-md"></select>
         </div>
-        <div class="mb-2">
-            <label for="cliente" class="block font-semibold">Cliente</label>
-            <input id="cliente" name="cliente" type="text" class="border border-gray-300 rounded p-2 w-full" required />
+        <div>
+          <label for="anno" class="form-label">Anno</label>
+          <select id="anno" class="mt-1 block w-full p-2 border border-gray-300 rounded-md"></select>
         </div>
-        <div class="mb-2">
-            <label for="dataInizio" class="block font-semibold">Data Inizio</label>
-            <input id="dataInizio" name="dataInizio" type="date" class="border border-gray-300 rounded p-2 w-full" required />
-        </div>
-        <div class="mb-2">
-            <label for="dataFine" class="block font-semibold">Data Fine</label>
-            <input id="dataFine" name="dataFine" type="date" class="border border-gray-300 rounded p-2 w-full" required />
-        </div>
-        <div class="mb-2">
-            <label for="fatturatoLordo" class="block font-semibold">Fatturato Lordo</label>
-            <input id="fatturatoLordo" name="fatturatoLordo" type="number" min="0" step="0.01" class="border border-gray-300 rounded p-2 w-full" required />
-        </div>
-        <button type="submit" class="bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700">
-            Aggiungi Contratto
-        </button>
-    </form>
-
-    <table id="tabellaContratti" class="min-w-full bg-white rounded shadow overflow-hidden">
-        <thead class="bg-gray-200">
-            <tr>
-                <th class="text-left p-2">Numero Contratto</th>
-                <th class="text-left p-2">Cliente</th>
-                <th class="text-left p-2">Data Inizio</th>
-                <th class="text-left p-2">Data Fine</th>
-                <th class="text-left p-2">Fatturato Lordo</th>
-                <th class="text-left p-2">Giorni</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-        <tfoot class="bg-gray-100 font-semibold">
-            <tr>
-                <td colspan="4" class="p-2 text-right">Totale</td>
-                <td id="totaleFatturato" class="p-2">0</td>
-                <td id="totaleGiorni" class="p-2">0</td>
-            </tr>
-        </tfoot>
-    </table>
-
-    <div class="mt-4">
-        <button id="btnEsporta" class="bg-green-600 text-white rounded px-4 py-2 hover:bg-green-700">
-            Esporta PDF
-        </button>
+      </div>
     </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const meseSelect = document.getElementById('mese');
-    const annoSelect = document.getElementById('anno');
-    const form = document.getElementById('formContratto');
-    const tbody = document.querySelector('#tabellaContratti tbody');
-    const totaleFatturatoEl = document.getElementById('totaleFatturato');
-    const totaleGiorniEl = document.getElementById('totaleGiorni');
-    const numeroContrattoInput = document.getElementById('numeroContratto');
+    <!-- Inserimento Contratto -->
+    <div class="bg-white p-6 rounded-2xl shadow-xl">
+      <h2 class="text-2xl font-bold mb-4 text-gray-800">Inserisci Dati Contratto</h2>
+      <div id="erroreInserimento" class="text-red-600 font-semibold mb-3"></div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div>
+          <label class="form-label">Numero Contratto</label>
+          <input type="text" id="contratto" value="25-BRI-" class="w-full p-2 border border-gray-300 rounded-md" />
+        </div>
+        <div>
+          <label class="form-label">Fatturato Lordo €</label>
+          <input type="number" id="lordo" inputmode="numeric" min="0" step="0.01" class="w-full p-2 border border-gray-300 rounded-md" />
+        </div>
+        <div>
+          <label class="form-label">Giorni Contratto</label>
+          <input type="number" id="giorni" inputmode="numeric" min="1" max="365" class="w-full p-2 border border-gray-300 rounded-md" />
+        </div>
+      </div>
+      <button onclick="aggiungiContratto()" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl shadow-lg text-lg">Salva Contratto</button>
+      <div id="salvataggioOK" class="text-green-600 mt-3 transition-opacity duration-700"></div>
+    </div>
 
-    // Impostiamo sempre il prefisso 25-BRI-
-    numeroContrattoInput.value = "25-BRI-";
+    <!-- Tabella Contratti -->
+    <div id="sezioneTabella" class="bg-white p-6 rounded-2xl shadow-xl">
+      <h3 class="text-xl font-semibold mb-4 text-gray-800">Contratti Salvati</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-center bg-white border border-gray-200">
+          <thead class="text-gray-700">
+            <tr>
+              <th>Contratto</th>
+              <th>Netto €</th>
+              <th>Giorni</th>
+              <th>RPD €</th>
+              <th>Provv. €</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tabella"></tbody>
+        </table>
+      </div>
+      <div class="mt-4 text-right text-base text-gray-800 font-semibold" id="totaleProvvigioni"></div>
+      <div class="text-right text-sm text-gray-600 font-medium" id="rpdTotale"></div>
+    </div>
 
-    // Impedire di cancellare il prefisso e consentire solo numeri dopo
-    numeroContrattoInput.addEventListener('input', function(e) {
-        const val = e.target.value;
-        // Se non inizia con 25-BRI-, correggi
-        if (!val.startsWith('25-BRI-')) {
-            e.target.value = '25-BRI-';
-            return;
-        }
-        // Permetti solo cifre dopo il prefisso
-        let afterPrefix = val.slice(7);
-        afterPrefix = afterPrefix.replace(/\D/g, ''); // rimuove tutto tranne numeri
-        e.target.value = '25-BRI-' + afterPrefix;
+    <!-- Grafico -->
+    <div class="bg-white p-6 rounded-2xl shadow-xl">
+      <h3 class="text-xl font-semibold mb-4 text-gray-800">Andamento RPD per Contratto</h3>
+      <canvas id="graficoProvvigioni" height="120"></canvas>
+    </div>
+  </div>
+
+  <!-- Modal Conferma Eliminazione -->
+  <div id="modalConferma" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-xl shadow-xl w-80">
+      <p class="text-center mb-4 text-gray-800">Sei sicuro di voler eliminare questo contratto?</p>
+      <div class="flex justify-between">
+        <button onclick="chiudiModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded">Annulla</button>
+        <button id="btnConfermaEliminazione" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">Elimina</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+    const meseSelect = document.getElementById("mese");
+    const annoSelect = document.getElementById("anno");
+
+    const oggi = new Date();
+    mesi.forEach((mese, i) => {
+      meseSelect.innerHTML += `<option value="${i + 1}">${mese}</option>`;
     });
+    for (let y = oggi.getFullYear() - 2; y <= oggi.getFullYear() + 2; y++) {
+      annoSelect.innerHTML += `<option value="${y}">${y}</option>`;
+    }
+    meseSelect.value = oggi.getMonth() + 1;
+    annoSelect.value = oggi.getFullYear();
 
-    // Aggiunge solo tastiera numerica su mobile dopo il prefisso
-    numeroContrattoInput.setAttribute('inputmode', 'numeric');
-    numeroContrattoInput.setAttribute('pattern', '25-BRI-\\d*');
+    meseSelect.addEventListener('change', caricaDati);
+    annoSelect.addEventListener('change', caricaDati);
 
-    // Funzione per calcolare giorni
-    function calcolaGiorni(dataInizio, dataFine) {
-        const dInizio = new Date(dataInizio);
-        const dFine = new Date(dataFine);
-        const diff = dFine - dInizio;
-        if(diff < 0) return 0;
-        return Math.floor(diff / (1000 * 60 * 60 * 24)) + 1; // includendo entrambi i giorni
+    function getKey() {
+      return `contratti_${annoSelect.value}_${meseSelect.value}`;
     }
 
-    // Salva contratti in localStorage con chiave mese-anno
-    function salvaContratti(contratti) {
-        const key = meseSelect.value + '-' + annoSelect.value;
-        localStorage.setItem('contratti-' + key, JSON.stringify(contratti));
+    function getContratti() {
+      return JSON.parse(localStorage.getItem(getKey())) || [];
     }
 
-    // Carica contratti da localStorage
-    function caricaContratti() {
-        const key = meseSelect.value + '-' + annoSelect.value;
-        const dati = localStorage.getItem('contratti-' + key);
-        return dati ? JSON.parse(dati) : [];
+    function setContratti(c) {
+      localStorage.setItem(getKey(), JSON.stringify(c));
     }
 
-    // Aggiorna tabella e totali
+    function getPercentualeProvvigione(rpdTotale) {
+      if (rpdTotale >= 20) return 0.08;
+      if (rpdTotale >= 18) return 0.06;
+      return 0.03;
+    }
+
+    let grafico = null;
+    let indiceEliminazione = null;
+
+    function caricaDati() {
+      aggiornaTabella();
+      // generaNumeroContratto(); // disattivata
+      nascondiMessaggioSalvataggio();
+    }
+
     function aggiornaTabella() {
-        const contratti = caricaContratti();
-        tbody.innerHTML = '';
-        let totaleFatturato = 0;
-        let totaleGiorni = 0;
-        contratti.forEach(c => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="border px-2 py-1">${c.numeroContratto}</td>
-                <td class="border px-2 py-1">${c.cliente}</td>
-                <td class="border px-2 py-1">${c.dataInizio}</td>
-                <td class="border px-2 py-1">${c.dataFine}</td>
-                <td class="border px-2 py-1">${c.fatturatoLordo.toFixed(2)}</td>
-                <td class="border px-2 py-1">${c.giorni}</td>
-            `;
-            tbody.appendChild(tr);
-            totaleFatturato += c.fatturatoLordo;
-            totaleGiorni += c.giorni;
-        });
-        totaleFatturatoEl.textContent = totaleFatturato.toFixed(2);
-        totaleGiorniEl.textContent = totaleGiorni;
+      const contratti = getContratti();
+      const tbody = document.getElementById("tabella");
+      tbody.innerHTML = "";
+
+      let sommaNetto = 0;
+      let sommaGiorni = 0;
+
+      contratti.forEach(c => {
+        sommaNetto += c.netto;
+        sommaGiorni += c.giorni;
+      });
+
+      let rpdTotale = sommaGiorni > 0 ? sommaNetto / sommaGiorni : 0;
+      let percentuale = getPercentualeProvvigione(rpdTotale);
+      let totaleProvv = 0;
+
+      contratti.forEach((c, i) => {
+        const rpd = c.netto / c.giorni;
+        const provvigione = c.netto * percentuale;
+        totaleProvv += provvigione;
+
+        tbody.innerHTML += `
+          <tr>
+            <td>${c.codice}</td>
+            <td>€ ${c.netto.toFixed(2)}</td>
+            <td>${c.giorni}</td>
+            <td>€ ${rpd.toFixed(2)}</td>
+            <td>€ ${provvigione.toFixed(2)}</td>
+            <td><button onclick="richiediEliminazione(${i})" class="text-red-600 hover:text-red-800 font-semibold">✖</button></td>
+          </tr>`;
+      });
+
+      document.getElementById("totaleContratti").textContent = `Totale contratti: ${contratti.length}`;
+      document.getElementById("totaleGiorni").textContent = `Totale giorni: ${sommaGiorni}`;
+      document.getElementById("totaleProvvigioni").textContent = `Totale provvigioni: € ${totaleProvv.toFixed(2)}`;
+      document.getElementById("rpdTotale").textContent = `RPD medio: € ${rpdTotale.toFixed(2)}`;
+
+      aggiornaGrafico(contratti);
     }
 
-    // Aggiorna tabella quando cambia mese o anno
-    meseSelect.addEventListener('change', aggiornaTabella);
-    annoSelect.addEventListener('change', aggiornaTabella);
+    function aggiornaGrafico(contratti) {
+      const labels = contratti.map(c => c.codice);
+      const dataRpd = contratti.map(c => c.netto / c.giorni);
+      const ctx = document.getElementById('graficoProvvigioni').getContext('2d');
+      if (grafico) grafico.destroy();
 
-    // Gestione invio form
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const numeroContratto = numeroContrattoInput.value.trim();
-        if (!numeroContratto.match(/^25-BRI-\d+$/)) {
-            alert("Il numero contratto deve iniziare con '25-BRI-' seguito da almeno un numero.");
-            return;
+      grafico = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'RPD (€ per giorno)',
+            data: dataRpd,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.2)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'RPD (€)' }
+            },
+            x: {
+              title: { display: true, text: 'Numero Contratto' }
+            }
+          }
         }
+      });
+    }
 
-        const cliente = form.cliente.value.trim();
-        const dataInizio = form.dataInizio.value;
-        const dataFine = form.dataFine.value;
-        const fatturatoLordo = parseFloat(form.fatturatoLordo.value);
+    function aggiungiContratto() {
+      const contratto = document.getElementById("contratto").value;
+      const lordoInput = document.getElementById("lordo");
+      const giorniInput = document.getElementById("giorni");
+      const errore = document.getElementById("erroreInserimento");
 
-        if (!cliente || !dataInizio || !dataFine || isNaN(fatturatoLordo) || fatturatoLordo < 0) {
-            alert("Inserisci tutti i dati correttamente.");
-            return;
-        }
+      errore.textContent = "";
 
-        const giorni = calcolaGiorni(dataInizio, dataFine);
-        if (giorni === 0) {
-            alert("La data fine deve essere successiva o uguale alla data inizio.");
-            return;
-        }
+      const lordo = parseFloat(lordoInput.value);
+      const giorni = parseInt(giorniInput.value);
 
-        const contratti = caricaContratti();
-        contratti.push({ numeroContratto, cliente, dataInizio, dataFine, fatturatoLordo, giorni });
-        salvaContratti(contratti);
-        aggiornaTabella();
+      if (!contratto) {
+        errore.textContent = "Numero contratto non valido.";
+        return;
+      }
+      if (isNaN(lordo) || lordo < 0) {
+        errore.textContent = "Inserisci un valore valido per il fatturato lordo (anche 0 è ammesso).";
+        lordoInput.focus();
+        return;
+      }
+      if (isNaN(giorni) || giorni < 1 || giorni > 365) {
+        errore.textContent = "Inserisci un numero di giorni tra 1 e 365.";
+        giorniInput.focus();
+        return;
+      }
 
-        form.reset();
-        numeroContrattoInput.value = "25-BRI-";
+      let contratti = getContratti();
+      if (contratti.some(c => c.codice === contratto)) {
+        errore.textContent = "Il numero contratto esiste già.";
+        return;
+      }
+
+      const netto = lordo * 0.90;
+      contratti.push({ codice: contratto, netto, giorni });
+      setContratti(contratti);
+
+      lordoInput.value = "";
+      giorniInput.value = "";
+      mostraMessaggioSalvataggio("Contratto salvato con successo.");
+      caricaDati();
+    }
+
+    function mostraMessaggioSalvataggio(msg) {
+      const el = document.getElementById("salvataggioOK");
+      el.textContent = msg;
+      el.classList.add("show");
+      setTimeout(() => {
+        el.classList.remove("show");
+        el.textContent = "";
+      }, 3000);
+    }
+
+    function nascondiMessaggioSalvataggio() {
+      const el = document.getElementById("salvataggioOK");
+      el.classList.remove("show");
+      el.textContent = "";
+    }
+
+    function richiediEliminazione(indice) {
+      indiceEliminazione = indice;
+      document.getElementById("modalConferma").classList.remove("hidden");
+    }
+    function chiudiModal() {
+      indiceEliminazione = null;
+      document.getElementById("modalConferma").classList.add("hidden");
+    }
+
+    document.getElementById("btnConfermaEliminazione").addEventListener('click', () => {
+      if (indiceEliminazione !== null) {
+        let contratti = getContratti();
+        contratti.splice(indiceEliminazione, 1);
+        setContratti(contratti);
+        chiudiModal();
+        caricaDati();
+      }
     });
 
-    // Funzione esportazione PDF
-    document.getElementById('btnEsporta').addEventListener('click', () => {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
+    function stampaContratti() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
 
-        doc.setFontSize(18);
-        doc.text('Registro Contratti', 14, 22);
+      const contratti = getContratti();
+      if (contratti.length === 0) {
+        alert("Nessun contratto da esportare.");
+        return;
+      }
 
-        // Intestazioni
-        const headers = [["Numero Contratto", "Cliente", "Data Inizio", "Data Fine", "Fatturato Lordo", "Giorni"]];
-        const contratti = caricaContratti();
+      doc.setFontSize(16);
+      doc.text("Elenco Contratti - " + mesi[parseInt(meseSelect.value) - 1] + " " + annoSelect.value, 14, 15);
 
-        const data = contratti.map(c => [
-            c.numeroContratto,
-            c.cliente,
-            c.dataInizio,
-            c.dataFine,
-            c.fatturatoLordo.toFixed(2),
-            c.giorni.toString()
-        ]);
+      let y = 25;
 
-        doc.autoTable({
-            startY: 30,
-            head: headers,
-            body: data,
-        });
+      doc.setFontSize(12);
+      doc.text("Contratto", 14, y);
+      doc.text("Netto (€)", 60, y);
+      doc.text("Giorni", 100, y);
+      doc.text("RPD (€)", 130, y);
+      doc.text("Provv. (€)", 160, y);
+      y += 6;
 
-        doc.text(`Totale Fatturato Lordo: ${totaleFatturatoEl.textContent}`, 14, doc.lastAutoTable.finalY + 10);
-        doc.text(`Totale Giorni: ${totaleGiorniEl.textContent}`, 14, doc.lastAutoTable.finalY + 20);
+      let sommaNetto = 0;
+      let sommaGiorni = 0;
+      contratti.forEach(c => {
+        sommaNetto += c.netto;
+        sommaGiorni += c.giorni;
+      });
+      let rpdTotale = sommaGiorni > 0 ? sommaNetto / sommaGiorni : 0;
+      let percentuale = getPercentualeProvvigione(rpdTotale);
 
-        doc.save(`registro-contratti-${meseSelect.value}-${annoSelect.value}.pdf`);
-    });
+      contratti.forEach(c => {
+        let rpd = c.netto / c.giorni;
+        let provv = c.netto * percentuale;
 
-    // Inizializzazione tabella al caricamento
-    aggiornaTabella();
-});
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+        doc.text(c.codice, 14, y);
+        doc.text(c.netto.toFixed(2), 60, y);
+        doc.text(c.giorni.toString(), 100, y);
+        doc.text(rpd.toFixed(2), 130, y);
+        doc.text(provv.toFixed(2), 160, y);
+        y += 6;
+
+        if (y > 280) {
+          doc.addPage();
+          y = 20;
+        }
+      });
+
+      y += 8;
+      doc.setFontSize(14);
+      doc.text(`Totale Provvigioni: € ${(sommaNetto * percentuale).toFixed(2)}`, 14, y);
+      doc.text(`RPD medio: € ${rpdTotale.toFixed(2)}`, 14, y + 8);
+
+      doc.save(`Contratti_${annoSelect.value}_${meseSelect.value}.pdf`);
+    }
+
+    caricaDati();
+  </script>
 </body>
 </html>
