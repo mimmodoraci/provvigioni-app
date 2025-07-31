@@ -37,7 +37,7 @@
     color: #374151;
     user-select: none;
   }
-  #contratto {
+  #contrattoInput {
     border-radius: 0 0.375rem 0.375rem 0;
     border-left: none;
     flex-grow: 1;
@@ -86,18 +86,18 @@
           <label class="form-label" for="contrattoInput">Numero Contratto</label>
           <div id="contratto-wrapper">
             <div id="prefisso">25-BRI-</div>
-            <input type="text" id="contrattoInput" inputmode="numeric" pattern="[0-9]*" class="w-full p-2 rounded-r-md" placeholder="Inserisci solo numeri" />
+            <input type="text" id="contrattoInput" inputmode="numeric" pattern="[0-9]*" placeholder="Inserisci solo numeri" />
           </div>
         </div>
 
         <div>
           <label class="form-label" for="lordoInput">Fatturato Lordo €</label>
-          <input type="number" min="0" step="0.01" id="lordoInput" inputmode="decimal" class="w-full p-2 border border-gray-300 rounded-md" placeholder="Es. 12345.67" />
+          <input type="number" min="0" step="0.01" id="lordoInput" inputmode="decimal" placeholder="Es. 12345.67" />
         </div>
 
         <div>
           <label class="form-label" for="giorniInput">Giorni Contratto</label>
-          <input type="number" min="1" max="365" id="giorniInput" inputmode="numeric" class="w-full p-2 border border-gray-300 rounded-md" placeholder="1-365" />
+          <input type="number" min="1" max="365" id="giorniInput" inputmode="numeric" placeholder="1-365" />
         </div>
 
       </div>
@@ -150,191 +150,301 @@
   </div>
 
 <script>
-  (() => {
-    const prefisso = "25-BRI-";
-    let contratti = [];
-    let eliminaIndex = null;
+(() => {
+  const prefisso = "25-BRI-";
+  let contratti = [];
+  let eliminaIndex = null;
 
-    // Elements
-    const contrattoInput = document.getElementById('contrattoInput');
-    const lordoInput = document.getElementById('lordoInput');
-    const giorniInput = document.getElementById('giorniInput');
-    const btnSalva = document.getElementById('btnSalva');
-    const tabellaCorpo = document.getElementById('tabellaCorpo');
-    const totaleContrattiEl = document.getElementById('totaleContratti');
-    const totaleGiorniEl = document.getElementById('totaleGiorni');
-    const totaleProvvigioniEl = document.getElementById('totaleProvvigioni');
-    const rpdTotaleEl = document.getElementById('rpdTotale');
-    const percentualeProvvigioneEl = document.getElementById('percentualeProvvigione');
-    const erroreInserimentoEl = document.getElementById('erroreInserimento');
-    const salvataggioOKEl = document.getElementById('salvataggioOK');
-    const btnEsportaPdf = document.getElementById('btnEsportaPdf');
+  // Elements
+  const contrattoInput = document.getElementById('contrattoInput');
+  const lordoInput = document.getElementById('lordoInput');
+  const giorniInput = document.getElementById('giorniInput');
+  const btnSalva = document.getElementById('btnSalva');
+  const tabellaCorpo = document.getElementById('tabellaCorpo');
+  const totaleContrattiEl = document.getElementById('totaleContratti');
+  const totaleGiorniEl = document.getElementById('totaleGiorni');
+  const totaleProvvigioniEl = document.getElementById('totaleProvvigioni');
+  const rpdTotaleEl = document.getElementById('rpdTotale');
+  const percentualeProvvigioneEl = document.getElementById('percentualeProvvigione');
+  const erroreInserimentoEl = document.getElementById('erroreInserimento');
+  const salvataggioOKEl = document.getElementById('salvataggioOK');
+  const btnEsportaPdf = document.getElementById('btnEsportaPdf');
 
-    const modalConferma = document.getElementById('modalConfermaOverlay');
-    const btnAnnulla = document.getElementById('btnAnnulla');
-    const btnConfermaElimina = document.getElementById('btnConfermaElimina');
+  const modalConferma = document.getElementById('modalConfermaOverlay');
+  const btnAnnulla = document.getElementById('btnAnnulla');
+  const btnConfermaElimina = document.getElementById('btnConfermaElimina');
 
-    // Grafico ChartJS
-    const ctx = document.getElementById('graficoRPD').getContext('2d');
-    let graficoRPD = new Chart(ctx, {
+  // Grafico Chart.js
+  const ctx = document.getElementById('graficoRPD').getContext('2d');
+  let grafico = null;
+
+  // Funzione per calcolare netto = lordo / 1.22
+  function calcolaNetto(lordo) {
+    return lordo / 1.22;
+  }
+
+  // Calcola RPD = netto / giorni
+  function calcolaRPD(netto, giorni) {
+    if (giorni === 0) return 0;
+    return netto / giorni;
+  }
+
+  // Calcola percentuale provvigione in base a RPD
+  function percentualeProvvigioneDaRPD(rpd) {
+    if (rpd > 0 && rpd < 16) return 3;
+    else if (rpd >= 16 && rpd < 20) return 6;
+    else if (rpd >= 20) return 8;
+    else return 0;
+  }
+
+  // Aggiorna la tabella
+  function aggiornaTabella() {
+    tabellaCorpo.innerHTML = '';
+    let totaleProvvigioni = 0;
+    let totaleNetto = 0;
+    let totaleGiorni = 0;
+
+    contratti.forEach((contratto, i) => {
+      const netto = calcolaNetto(contratto.lordo);
+      const rpd = calcolaRPD(netto, contratto.giorni);
+      const percentuale = percentualeProvvigioneDaRPD(rpd);
+      const provvigione = netto * (percentuale / 100);
+      totaleProvvigioni += provvigione;
+      totaleNetto += netto;
+      totaleGiorni += contratto.giorni;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="border border-gray-300">${prefisso}${contratto.numero}</td>
+        <td class="border border-gray-300">${netto.toFixed(2)} €</td>
+        <td class="border border-gray-300">${contratto.giorni}</td>
+        <td class="border border-gray-300">${rpd.toFixed(2)} €</td>
+        <td class="border border-gray-300">${provvigione.toFixed(2)} €</td>
+        <td class="border border-gray-300">
+          <button class="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 btn-elimina" data-index="${i}" aria-label="Elimina contratto">Elimina</button>
+        </td>
+      `;
+      tabellaCorpo.appendChild(tr);
+    });
+
+    totaleContrattiEl.textContent = `Contratti totali: ${contratti.length}`;
+    totaleGiorniEl.textContent = `Giorni totali: ${totaleGiorni}`;
+    totaleProvvigioniEl.textContent = `Totale Provvigioni: €${totaleProvvigioni.toFixed(2)}`;
+
+    // Calcola RPD totale complessivo
+    const rpdTotale = totaleGiorni > 0 ? totaleNetto / totaleGiorni : 0;
+    rpdTotaleEl.textContent = `RPD Totale: €${rpdTotale.toFixed(2)}`;
+
+    // Percentuale provvigione per RPD totale
+    const percProvvigioneTotale = percentualeProvvigioneDaRPD(rpdTotale);
+    percentualeProvvigioneEl.textContent = `Provvigione attuale: ${percProvvigioneTotale}%`;
+
+    aggiornaGrafico();
+    aggiornaEventiElimina();
+  }
+
+  // Aggiorna il grafico con andamento RPD per ogni contratto
+  function aggiornaGrafico() {
+    if (grafico) grafico.destroy();
+
+    const labels = contratti.map((c, i) => `${prefisso}${c.numero}`);
+    const datiRPD = contratti.map(c => {
+      const netto = calcolaNetto(c.lordo);
+      return calcolaRPD(netto, c.giorni);
+    });
+
+    grafico = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: [],
+        labels,
         datasets: [{
-          label: 'RPD (€)',
-          data: [],
+          label: 'RPD €',
+          data: datiRPD,
           borderColor: '#2563eb',
           backgroundColor: 'rgba(37, 99, 235, 0.3)',
           fill: true,
           tension: 0.3,
-          pointRadius: 4,
-          pointHoverRadius: 6,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          borderWidth: 3,
         }]
       },
       options: {
         responsive: true,
-        plugins: {
-          legend: { display: true },
-          tooltip: { enabled: true }
+        interaction: {
+          mode: 'nearest',
+          intersect: false
         },
         scales: {
           y: {
             beginAtZero: true,
-            ticks: { stepSize: 100 }
+            ticks: { stepSize: 2 }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            labels: { color: '#1e293b', font: { weight: 'bold' } }
           }
         }
       }
     });
+  }
 
-    // Validazione input: solo numeri nel contratto (senza lettere)
-    contrattoInput.addEventListener('input', () => {
-      contrattoInput.value = contrattoInput.value.replace(/[^0-9]/g, '');
+  // Mostra messaggio salvataggio OK
+  function mostraSalvataggioOK() {
+    salvataggioOKEl.textContent = 'Contratto salvato con successo!';
+    salvataggioOKEl.style.opacity = '1';
+    setTimeout(() => {
+      salvataggioOKEl.style.opacity = '0';
+    }, 2000);
+  }
+
+  // Validazione input
+  function validaInput() {
+    erroreInserimentoEl.textContent = '';
+    const numero = contrattoInput.value.trim();
+    const lordo = parseFloat(lordoInput.value);
+    const giorni = parseInt(giorniInput.value, 10);
+
+    if (!numero || !/^\d+$/.test(numero)) {
+      erroreInserimentoEl.textContent = 'Inserisci un numero contratto valido (solo cifre).';
+      return false;
+    }
+    if (isNaN(lordo) || lordo <= 0) {
+      erroreInserimentoEl.textContent = 'Inserisci un valore lordo valido maggiore di 0.';
+      return false;
+    }
+    if (isNaN(giorni) || giorni < 1 || giorni > 365) {
+      erroreInserimentoEl.textContent = 'Inserisci un numero di giorni valido (1-365).';
+      return false;
+    }
+
+    // Controlla se contratto già esistente (numero univoco)
+    if (contratti.some(c => c.numero === numero)) {
+      erroreInserimentoEl.textContent = 'Numero contratto già inserito.';
+      return false;
+    }
+
+    return true;
+  }
+
+  // Aggiunge evento click ai bottoni elimina
+  function aggiornaEventiElimina() {
+    document.querySelectorAll('.btn-elimina').forEach(btn => {
+      btn.onclick = () => {
+        eliminaIndex = parseInt(btn.dataset.index, 10);
+        mostraModalElimina(true);
+      };
+    });
+  }
+
+  // Mostra/nascondi modal conferma elimina
+  function mostraModalElimina(show) {
+    if (show) {
+      modalConferma.style.display = 'flex';
+    } else {
+      modalConferma.style.display = 'none';
+      eliminaIndex = null;
+    }
+  }
+
+  // Evento salva contratto
+  btnSalva.onclick = () => {
+    if (!validaInput()) return;
+
+    const numero = contrattoInput.value.trim();
+    const lordo = parseFloat(lordoInput.value);
+    const giorni = parseInt(giorniInput.value, 10);
+
+    contratti.push({ numero, lordo, giorni });
+
+    aggiornaTabella();
+    mostraSalvataggioOK();
+
+    // reset form
+    contrattoInput.value = '';
+    lordoInput.value = '';
+    giorniInput.value = '';
+    contrattoInput.focus();
+  };
+
+  // Eventi modal elimina
+  btnAnnulla.onclick = () => mostraModalElimina(false);
+  btnConfermaElimina.onclick = () => {
+    if (eliminaIndex !== null) {
+      contratti.splice(eliminaIndex, 1);
+      aggiornaTabella();
+      mostraModalElimina(false);
+    }
+  };
+
+  // Esporta PDF
+  btnEsportaPdf.onclick = () => {
+    if (contratti.length === 0) {
+      alert("Nessun contratto da esportare.");
+      return;
+    }
+    esportaPdf();
+  };
+
+  // Funzione per esportare PDF
+  function esportaPdf() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(16);
+    doc.text("Elenco Contratti", 14, 20);
+
+    let y = 30;
+    doc.setFontSize(12);
+    doc.text(`Totale Contratti: ${contratti.length}`, 14, y);
+    y += 8;
+    let totaleGiorni = contratti.reduce((sum, c) => sum + c.giorni, 0);
+    doc.text(`Giorni Totali: ${totaleGiorni}`, 14, y);
+    y += 12;
+
+    // Header tabella
+    doc.setFont(undefined, 'bold');
+    doc.text("Contratto", 14, y);
+    doc.text("Netto (€)", 55, y);
+    doc.text("Giorni", 90, y);
+    doc.text("RPD (€)", 120, y);
+    doc.text("Provv. (€)", 155, y);
+    doc.setFont(undefined, 'normal');
+    y += 6;
+
+    // Linea sotto header
+    doc.line(14, y, 200, y);
+    y += 6;
+
+    // Dati tabella
+    contratti.forEach(c => {
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+      }
+      const netto = calcolaNetto(c.lordo);
+      const rpd = calcolaRPD(netto, c.giorni);
+      const percentuale = percentualeProvvigioneDaRPD(rpd);
+      const provvigione = netto * (percentuale / 100);
+
+      doc.text(`${prefisso}${c.numero}`, 14, y);
+      doc.text(netto.toFixed(2), 55, y);
+      doc.text(c.giorni.toString(), 90, y);
+      doc.text(rpd.toFixed(2), 120, y);
+      doc.text(provvigione.toFixed(2), 155, y);
+      y += 8;
     });
 
-    // Calcolo RPD e provvigione per un contratto
-    function calcolaRPD(lordo, giorni) {
-      if (giorni === 0) return 0;
-      return (lordo / giorni);
-    }
-    function calcolaProvvigione(rpd) {
-      if (rpd < 10000) return 0.03;
-      if (rpd < 20000) return 0.06;
-      return 0.08;
-    }
+    doc.save("contratti.pdf");
+  }
 
-    // Aggiungi contratto
-    btnSalva.addEventListener('click', () => {
-      erroreInserimentoEl.textContent = '';
-      const numContratto = contrattoInput.value.trim();
-      const lordo = parseFloat(lordoInput.value);
-      const giorni = parseInt(giorniInput.value);
+  // Inizializza tabella e grafico all'avvio
+  aggiornaTabella();
 
-      // Controlli
-      if (!numContratto) {
-        erroreInserimentoEl.textContent = 'Inserisci il numero contratto (solo numeri).';
-        return;
-      }
-      if (isNaN(lordo) || lordo < 0) {
-        erroreInserimentoEl.textContent = 'Inserisci un valore corretto per il fatturato lordo.';
-        return;
-      }
-      if (isNaN(giorni) || giorni < 1 || giorni > 365) {
-        erroreInserimentoEl.textContent = 'Inserisci un numero di giorni tra 1 e 365.';
-        return;
-      }
+})();
+</script>
 
-      // Numero contratto completo con prefisso
-      const contrattoCompleto = prefisso + numContratto;
-
-      // Controllo duplicati
-      if (contratti.some(c => c.contratto === contrattoCompleto)) {
-        erroreInserimentoEl.textContent = 'Questo numero di contratto esiste già.';
-        return;
-      }
-
-      // Calcolo netto (ipotizzo 80% del lordo come netto)
-      const netto = lordo * 0.8;
-
-      // Calcolo RPD e provvigione
-      const rpd = calcolaRPD(lordo, giorni);
-      const provvigionePerc = calcolaProvvigione(rpd);
-      const provvigione = netto * provvigionePerc;
-
-      // Aggiungi a lista
-      contratti.push({
-        contratto: contrattoCompleto,
-        netto,
-        giorni,
-        rpd,
-        provvigione
-      });
-
-      // Pulisci input
-      contrattoInput.value = '';
-      lordoInput.value = '';
-      giorniInput.value = '';
-
-      aggiornaUI();
-      mostraMessaggio("Contratto salvato correttamente!");
-    });
-
-    // Funzione aggiorna UI
-    function aggiornaUI() {
-      // Riordina per numero contratto (numerico parte finale)
-      contratti.sort((a, b) => {
-        const numA = parseInt(a.contratto.replace(prefisso, ''));
-        const numB = parseInt(b.contratto.replace(prefisso, ''));
-        return numA - numB;
-      });
-
-      // Popola tabella
-      tabellaCorpo.innerHTML = '';
-      contratti.forEach((c, i) => {
-        const tr = document.createElement('tr');
-
-        tr.innerHTML = `
-          <td>${c.contratto}</td>
-          <td>€${c.netto.toFixed(2)}</td>
-          <td>${c.giorni}</td>
-          <td>€${c.rpd.toFixed(2)}</td>
-          <td>€${c.provvigione.toFixed(2)}</td>
-          <td><button class="text-red-600 hover:text-red-800 font-semibold" data-index="${i}">Elimina</button></td>
-        `;
-        tabellaCorpo.appendChild(tr);
-      });
-
-      // Aggiorna totali
-      const totaleContratti = contratti.length;
-      const totaleGiorni = contratti.reduce((sum, c) => sum + c.giorni, 0);
-      const totaleProvvigioni = contratti.reduce((sum, c) => sum + c.provvigione, 0);
-      const totaleRPD = contratti.reduce((sum, c) => sum + c.rpd, 0);
-
-      totaleContrattiEl.textContent = `Contratti totali: ${totaleContratti}`;
-      totaleGiorniEl.textContent = `Giorni totali: ${totaleGiorni}`;
-      totaleProvvigioniEl.textContent = `Totale Provvigioni: €${totaleProvvigioni.toFixed(2)}`;
-      rpdTotaleEl.textContent = `RPD Totale: €${totaleRPD.toFixed(2)}`;
-
-      // Percentuale provvigione totale basata su RPD totale medio
-      let rpdMedio = totaleContratti ? (totaleRPD / totaleContratti) : 0;
-      let percProvv = 0;
-      if (rpdMedio < 10000) percProvv = 3;
-      else if (rpdMedio < 20000) percProvv = 6;
-      else percProvv = 8;
-
-      percentualeProvvigioneEl.textContent = `Provvigione attuale: ${percProvv}%`;
-
-      // Aggiorna grafico
-      aggiornaGrafico();
-
-      // Aggiorna listener elimina
-      document.querySelectorAll('#tabellaCorpo button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          eliminaIndex = parseInt(e.target.getAttribute('data-index'));
-          apriModal();
-        });
-      });
-    }
-
-    // Messaggio conferma salvataggio
-    function mostraMessaggio(msg) {
-      salvataggio
+</body>
+</html>
