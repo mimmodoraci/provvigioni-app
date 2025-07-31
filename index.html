@@ -17,9 +17,6 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       padding: 20px;
       margin-bottom: 20px;
-      max-width: 400px;
-      margin-left: auto;
-      margin-right: auto;
     }
     label {
       font-weight: bold;
@@ -43,39 +40,197 @@
       border-radius: 8px;
       width: 100%;
       font-size: 16px;
-      cursor: pointer;
     }
-    .result {
-      margin-top: 20px;
-      font-weight: bold;
-      font-size: 20px;
+    h2, h3 {
+      margin-top: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
       text-align: center;
+    }
+    .total {
+      font-weight: bold;
+      font-size: 18px;
+      text-align: right;
+      margin-top: 10px;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+    .row > * {
+      flex: 1;
     }
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>Calcolo Provvigioni</h2>
-    <form id="provvigioniForm">
-      <label for="importo">Importo (€):</label>
-      <input type="number" id="importo" name="importo" min="0" step="any" required>
-      
-      <label for="percentuale">Percentuale Provvigione (%):</label>
-      <input type="number" id="percentuale" name="percentuale" min="0" step="any" required>
-      
-      <button type="submit">Calcola</button>
-    </form>
-    <div class="result" id="risultato"></div>
+    <div class="row">
+      <div>
+        <label for="mese">Mese</label>
+        <select id="mese"></select>
+      </div>
+      <div>
+        <label for="anno">Anno</label>
+        <select id="anno"></select>
+      </div>
+    </div>
   </div>
+  <div class="card">
+    <h2>Calcolo Provvigioni</h2>
+    <label for="contratto">Numero Contratto</label>
+    <input type="text" id="contratto">
+
+    <label for="lordo">Fatturato Lordo €</label>
+    <input type="number" id="lordo" oninput="calcolaNetto()">
+
+    <label for="netto">Fatturato Netto € (-22%)</label>
+    <input type="number" id="netto" readonly>
+
+    <label for="giorni">Giorni Contratto</label>
+    <input type="number" id="giorni">
+
+    <button onclick="aggiungiContratto()">Calcola e Salva</button>
+  </div>
+
+  <div class="card">
+    <h3>Contratti Salvati</h3>
+    <table id="tabella">
+      <thead>
+        <tr>
+          <th>Contratto</th>
+          <th>Netto €</th>
+          <th>Giorni</th>
+          <th>RPD €</th>
+          <th>Provvigione €</th>
+          <th>Azione</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="total" id="totaleProvvigioni"></div>
+    <div class="total" id="rpdTotale"></div>
+  </div>
+
   <script>
-    document.getElementById('provvigioniForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      var importo = parseFloat(document.getElementById('importo').value) || 0;
-      var percentuale = parseFloat(document.getElementById('percentuale').value) || 0;
-      var provvigione = importo * percentuale / 100;
-      document.getElementById('risultato').textContent = 
-        "Provvigione: € " + provvigione.toFixed(2);
-    });
+    // Gestione selettori mese e anno
+    const mesi = [
+      "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+      "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+    ];
+    const meseSelect = document.getElementById("mese");
+    const annoSelect = document.getElementById("anno");
+
+    const oggi = new Date();
+    for (let i = 0; i < mesi.length; i++) {
+      const opt = document.createElement("option");
+      opt.value = i+1;
+      opt.text = mesi[i];
+      meseSelect.appendChild(opt);
+    }
+    for (let y = oggi.getFullYear() - 2; y <= oggi.getFullYear() + 2; y++) {
+      const opt = document.createElement("option");
+      opt.value = y;
+      opt.text = y;
+      annoSelect.appendChild(opt);
+    }
+    meseSelect.value = oggi.getMonth() + 1;
+    annoSelect.value = oggi.getFullYear();
+
+    // Funzioni per gestire i dati per mese/anno
+    function getKey() {
+      return `contratti_${annoSelect.value}_${meseSelect.value}`;
+    }
+
+    function getContratti() {
+      return JSON.parse(localStorage.getItem(getKey())) || [];
+    }
+    function setContratti(c) {
+      localStorage.setItem(getKey(), JSON.stringify(c));
+    }
+
+    const tbody = document.querySelector("#tabella tbody");
+    const totaleProvvigioni = document.getElementById("totaleProvvigioni");
+
+    function aggiornaTabella() {
+      const contratti = getContratti();
+      tbody.innerHTML = "";
+      let totale = 0;
+      let sommaNetto = 0;
+      let sommaGiorni = 0;
+
+      contratti.forEach((c, i) => {
+        const rpd = (c.netto / c.giorni).toFixed(2);
+        const provvigione = (c.netto * 0.08).toFixed(2);
+        totale += parseFloat(provvigione);
+        sommaNetto += c.netto;
+        sommaGiorni += c.giorni;
+
+        tbody.innerHTML += `
+          <tr>
+            <td>${c.codice}</td>
+            <td>€ ${c.netto.toFixed(2)}</td>
+            <td>${c.giorni}</td>
+            <td>€ ${rpd}</td>
+            <td>€ ${provvigione}</td>
+            <td><button onclick="cancellaContratto(${i})">🗑️</button></td>
+          </tr>`;
+      });
+
+      totaleProvvigioni.textContent = `Totale Provvigioni: € ${totale.toFixed(2)}`;
+      if (sommaGiorni > 0) {
+        const rpdTotale = sommaNetto / sommaGiorni;
+        document.getElementById("rpdTotale").textContent = `RPD Totale: € ${rpdTotale.toFixed(2)}`;
+      } else {
+        document.getElementById("rpdTotale").textContent = "";
+      }
+    }
+
+    function aggiungiContratto() {
+      const codice = document.getElementById("contratto").value;
+      const netto = parseFloat(document.getElementById("netto").value);
+      const giorni = parseInt(document.getElementById("giorni").value);
+
+      if (!codice || isNaN(netto) || isNaN(giorni) || giorni <= 0) {
+        alert("Inserisci tutti i campi correttamente.");
+        return;
+      }
+
+      const contratti = getContratti();
+      contratti.push({ codice, netto, giorni });
+      setContratti(contratti);
+      aggiornaTabella();
+
+      document.getElementById("contratto").value = "";
+      document.getElementById("netto").value = "";
+      document.getElementById("giorni").value = "";
+      document.getElementById("lordo").value = "";
+    }
+
+    function calcolaNetto() {
+      const lordo = parseFloat(document.getElementById("lordo").value);
+      const netto = lordo * 0.78;
+      document.getElementById("netto").value = isNaN(netto) ? "" : netto.toFixed(2);
+    }
+
+    function cancellaContratto(index) {
+      if (confirm("Sei sicuro di voler cancellare questo contratto?")) {
+        const contratti = getContratti();
+        contratti.splice(index, 1);
+        setContratti(contratti);
+        aggiornaTabella();
+      }
+    }
+
+    meseSelect.addEventListener("change", aggiornaTabella);
+    annoSelect.addEventListener("change", aggiornaTabella);
+
+    aggiornaTabella();
   </script>
 </body>
 </html>
