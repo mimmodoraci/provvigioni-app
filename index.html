@@ -17,6 +17,9 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       padding: 20px;
       margin-bottom: 20px;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
     }
     label {
       font-weight: bold;
@@ -40,26 +43,39 @@
       border-radius: 8px;
       width: 100%;
       font-size: 16px;
+      cursor: pointer;
     }
-    h2, h3 {
-      margin-top: 30px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    th, td {
-      padding: 10px;
-      border-bottom: 1px solid #ddd;
+    .result {
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 20px;
       text-align: center;
     }
-    .total {
-      font-weight: bold;
-      font-size: 18px;
-      text-align: right;
-      margin-top: 10px;
-    }
-    .row {
-      display: flex;
-      gap
-Correzione file index.html
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Calcolo Provvigioni</h2>
+    <form id="provvigioniForm">
+      <label for="importo">Importo (€):</label>
+      <input type="number" id="importo" name="importo" min="0" step="any" required>
+      
+      <label for="percentuale">Percentuale Provvigione (%):</label>
+      <input type="number" id="percentuale" name="percentuale" min="0" step="any" required>
+      
+      <button type="submit">Calcola</button>
+    </form>
+    <div class="result" id="risultato"></div>
+  </div>
+  <script>
+    document.getElementById('provvigioniForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var importo = parseFloat(document.getElementById('importo').value) || 0;
+      var percentuale = parseFloat(document.getElementById('percentuale').value) || 0;
+      var provvigione = importo * percentuale / 100;
+      document.getElementById('risultato').textContent = 
+        "Provvigione: € " + provvigione.toFixed(2);
+    });
+  </script>
+</body>
+</html>
