@@ -72,7 +72,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div>
           <label class="form-label">Numero Contratto</label>
-          <input type="text" id="contratto" readonly />
+          <input type="text" id="contratto" value="25-BRI-" class="w-full p-2 border border-gray-300 rounded-md" />
         </div>
         <div>
           <label class="form-label">Fatturato Lordo €</label>
@@ -142,7 +142,6 @@
     meseSelect.value = oggi.getMonth() + 1;
     annoSelect.value = oggi.getFullYear();
 
-    // Evento cambio mese/anno: aggiorna tabella e nuovo codice contratto
     meseSelect.addEventListener('change', caricaDati);
     annoSelect.addEventListener('change', caricaDati);
 
@@ -169,24 +168,8 @@
 
     function caricaDati() {
       aggiornaTabella();
-      generaNumeroContratto();
+      // generaNumeroContratto(); // disattivata
       nascondiMessaggioSalvataggio();
-    }
-
-    function generaNumeroContratto() {
-      const contratti = getContratti();
-      // Trova il più alto numero progressivo già usato e incrementa
-      // Il formato è 25-bri-XXXX, estraiamo XXXX
-      let maxNum = 0;
-      contratti.forEach(c => {
-        let numStr = c.codice.split('-')[2];
-        let num = parseInt(numStr);
-        if (!isNaN(num) && num > maxNum) maxNum = num;
-      });
-      let prossimoNum = maxNum + 1;
-      // Formatta con 4 cifre, zeri davanti
-      let prossimoCodice = `25-bri-${prossimoNum.toString().padStart(4, '0')}`;
-      document.getElementById('contratto').value = prossimoCodice;
     }
 
     function aggiornaTabella() {
@@ -218,9 +201,7 @@
             <td>${c.giorni}</td>
             <td>€ ${rpd.toFixed(2)}</td>
             <td>€ ${provvigione.toFixed(2)}</td>
-            <td>
-              <button onclick="richiediEliminazione(${i})" class="text-red-600 hover:text-red-800 font-semibold">✖</button>
-            </td>
+            <td><button onclick="richiediEliminazione(${i})" class="text-red-600 hover:text-red-800 font-semibold">✖</button></td>
           </tr>`;
       });
 
@@ -235,9 +216,7 @@
     function aggiornaGrafico(contratti) {
       const labels = contratti.map(c => c.codice);
       const dataRpd = contratti.map(c => c.netto / c.giorni);
-
       const ctx = document.getElementById('graficoProvvigioni').getContext('2d');
-
       if (grafico) grafico.destroy();
 
       grafico = new Chart(ctx, {
@@ -261,16 +240,10 @@
           scales: {
             y: {
               beginAtZero: true,
-              title: {
-                display: true,
-                text: 'RPD (€)'
-              }
+              title: { display: true, text: 'RPD (€)' }
             },
             x: {
-              title: {
-                display: true,
-                text: 'Numero Contratto'
-              }
+              title: { display: true, text: 'Numero Contratto' }
             }
           }
         }
@@ -292,8 +265,8 @@
         errore.textContent = "Numero contratto non valido.";
         return;
       }
-      if (isNaN(lordo) || lordo <= 0) {
-        errore.textContent = "Inserisci un valore valido per il fatturato lordo.";
+      if (isNaN(lordo) || lordo < 0) {
+        errore.textContent = "Inserisci un valore valido per il fatturato lordo (anche 0 è ammesso).";
         lordoInput.focus();
         return;
       }
@@ -304,25 +277,18 @@
       }
 
       let contratti = getContratti();
-
-      // Controlla che il codice contratto non sia duplicato (caso raro ma sicuro)
       if (contratti.some(c => c.codice === contratto)) {
         errore.textContent = "Il numero contratto esiste già.";
         return;
       }
 
-      // Il netto è calcolato con lordo * 0.90 (ipotetico, puoi modificare se vuoi)
       const netto = lordo * 0.90;
-
       contratti.push({ codice: contratto, netto, giorni });
-
       setContratti(contratti);
 
       lordoInput.value = "";
       giorniInput.value = "";
-
       mostraMessaggioSalvataggio("Contratto salvato con successo.");
-
       caricaDati();
     }
 
@@ -335,13 +301,13 @@
         el.textContent = "";
       }, 3000);
     }
+
     function nascondiMessaggioSalvataggio() {
       const el = document.getElementById("salvataggioOK");
       el.classList.remove("show");
       el.textContent = "";
     }
 
-    // Funzioni eliminazione
     function richiediEliminazione(indice) {
       indiceEliminazione = indice;
       document.getElementById("modalConferma").classList.remove("hidden");
@@ -350,6 +316,7 @@
       indiceEliminazione = null;
       document.getElementById("modalConferma").classList.add("hidden");
     }
+
     document.getElementById("btnConfermaEliminazione").addEventListener('click', () => {
       if (indiceEliminazione !== null) {
         let contratti = getContratti();
@@ -360,7 +327,6 @@
       }
     });
 
-    // Esporta PDF solo tabella contratti e provvigioni
     function stampaContratti() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
@@ -376,7 +342,6 @@
 
       let y = 25;
 
-      // Intestazione tabella
       doc.setFontSize(12);
       doc.text("Contratto", 14, y);
       doc.text("Netto (€)", 60, y);
@@ -411,7 +376,6 @@
         }
       });
 
-      // Totali sotto tabella
       y += 8;
       doc.setFontSize(14);
       doc.text(`Totale Provvigioni: € ${(sommaNetto * percentuale).toFixed(2)}`, 14, y);
@@ -420,9 +384,7 @@
       doc.save(`Contratti_${annoSelect.value}_${meseSelect.value}.pdf`);
     }
 
-    // Avvia caricamento dati iniziale
     caricaDati();
-
   </script>
 </body>
 </html>
