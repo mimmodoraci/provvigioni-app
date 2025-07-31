@@ -2,109 +2,155 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Calcolo Provvigioni</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
     body {
-      background: linear-gradient(to bottom right, #f8fafc, #e2e8f0);
+      background: #f1f5f9;
       color: #1f2937;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Inter', sans-serif;
     }
-    table, th, td {
-      border: 1px solid #e5e7eb;
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+    }
+    .stats {
+      display: flex;
+      justify-content: flex-start;
+      gap: 20px;
+      margin-bottom: 1rem;
+      font-weight: 600;
+      color: #2563eb; /* blue-600 */
+    }
+    .bg-white {
+      background-color: #fff;
+    }
+    input, select, button {
+      border: 1px solid #d1d5db;
+      border-radius: 0.5rem;
+      padding: 0.5rem;
+      font-size: 1rem;
+      outline-offset: 2px;
+    }
+    input:focus, select:focus, button:focus {
+      outline: 2px solid #3b82f6;
+    }
+    table {
+      width: 100%;
       border-collapse: collapse;
+      margin-top: 1rem;
     }
     th, td {
-      padding: 8px 12px;
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      text-align: center;
     }
-    input, select {
-      background-color: #f9fafb;
+    th {
+      background-color: #e0e7ff; /* blue-100 */
+    }
+    button {
+      cursor: pointer;
+    }
+    button.delete-btn {
+      background: transparent;
+      border: none;
+      color: #ef4444; /* red-500 */
+      font-size: 1.2rem;
+    }
+    button.delete-btn:hover {
+      color: #b91c1c; /* red-700 */
+    }
+    button#pdf-btn {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      transition: background-color 0.3s ease;
+    }
+    button#pdf-btn:hover {
+      background-color: #1e40af;
     }
   </style>
 </head>
-<body class="p-6">
-  <div class="max-w-4xl mx-auto space-y-6">
-    <!-- Intestazione -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-      <div class="text-gray-700 font-semibold text-sm" id="infoContatti"></div>
-      <div class="space-x-2 mt-2 sm:mt-0">
-        <button onclick="stampaContratti()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl shadow">
-          📄 Esporta PDF Contratti
-        </button>
-      </div>
+<body>
+  <div class="container">
+
+    <!-- Stats in alto a sinistra -->
+    <div class="stats" id="stats">
+      <div>Totale Contratti: 0</div>
+      <div>Totale Giorni: 0</div>
+    </div>
+
+    <!-- Pulsante PDF -->
+    <div style="text-align: right; margin-bottom: 1rem;">
+      <button id="pdf-btn" onclick="exportPDF()">📄 Esporta in PDF</button>
     </div>
 
     <!-- Selezione mese/anno -->
-    <div class="bg-white p-6 rounded-2xl shadow-lg">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div>
-          <label for="mese" class="block text-sm font-medium text-gray-700">Mese</label>
-          <select id="mese" class="mt-1 block w-full p-2 border border-gray-300 rounded-md"></select>
+    <div class="bg-white p-6 rounded-2xl shadow-md mb-6">
+      <div style="display:flex; gap: 1rem;">
+        <div style="flex:1;">
+          <label for="mese" class="font-semibold block mb-1">Mese</label>
+          <select id="mese" class="w-full"></select>
         </div>
-        <div>
-          <label for="anno" class="block text-sm font-medium text-gray-700">Anno</label>
-          <select id="anno" class="mt-1 block w-full p-2 border border-gray-300 rounded-md"></select>
+        <div style="flex:1;">
+          <label for="anno" class="font-semibold block mb-1">Anno</label>
+          <select id="anno" class="w-full"></select>
         </div>
       </div>
     </div>
 
-    <!-- Inserimento Contratto -->
-    <div class="bg-white p-6 rounded-2xl shadow-lg">
-      <h2 class="text-xl font-bold mb-4">Inserisci Dati Contratto</h2>
-      <div id="erroreInserimento"></div>
-      <div class="space-y-4">
-        <div>
-          <label class="block font-medium">Numero Contratto</label>
-          <input type="text" id="contratto" class="w-full p-2 border border-gray-300 rounded-md" oninput="prefissoContratto()">
-        </div>
-        <div>
-          <label class="block font-medium">Fatturato Lordo €</label>
-          <input type="number" id="lordo" inputmode="numeric" min="0" step="0.01" onkeypress="return soloNumeri(event)" class="w-full p-2 border border-gray-300 rounded-md">
-        </div>
-        <div>
-          <label class="block font-medium">Giorni Contratto</label>
-          <input type="number" id="giorni" inputmode="numeric" min="1" max="365" onkeypress="return soloNumeri(event)" class="w-full p-2 border border-gray-300 rounded-md">
-        </div>
-        <button onclick="aggiungiContratto()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl shadow">Salva Contratto</button>
-        <div id="salvataggioOK"></div>
-      </div>
+    <!-- Calcolo -->
+    <div class="bg-white p-6 rounded-2xl shadow-md mb-6">
+      <h2 class="text-xl font-bold mb-4">Calcolo Provvigioni</h2>
+      <label for="contratto" class="font-semibold block mb-1">Numero Contratto</label>
+      <input type="text" id="contratto" inputmode="numeric" autocomplete="off" class="w-full mb-4" placeholder="25-bri-12345" maxlength="20" oninput="validateContratto()" />
+
+      <label for="lordo" class="font-semibold block mb-1">Fatturato Lordo &euro;</label>
+      <input type="number" id="lordo" min="0" inputmode="numeric" autocomplete="off" class="w-full mb-4" oninput="calcolaNetto()" />
+
+      <label for="giorni" class="font-semibold block mb-1">Giorni Contratto</label>
+      <input type="number" id="giorni" min="1" inputmode="numeric" autocomplete="off" class="w-full mb-6" />
+
+      <button onclick="aggiungiContratto()" class="w-full bg-blue-600 text-white py-2 rounded-md font-semibold hover:bg-blue-700 transition">Calcola e Salva</button>
     </div>
 
-    <!-- Tabella Contratti -->
-    <div class="bg-white p-6 rounded-2xl shadow-lg">
+    <!-- Contratti -->
+    <div class="bg-white p-6 rounded-2xl shadow-md" id="contratti-section">
       <h3 class="text-lg font-semibold mb-4">Contratti Salvati</h3>
-      <div class="flex justify-between text-sm text-gray-600 mb-2">
-        <div id="totaleContratti"></div>
-        <div id="totaleGiorni"></div>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm text-center bg-white">
-          <thead class="bg-gray-100 text-gray-600">
-            <tr>
-              <th>Contratto</th>
-              <th>Netto €</th>
-              <th>Giorni</th>
-              <th>RPD €</th>
-              <th>Provv. €</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="tabella"></tbody>
-        </table>
-      </div>
-      <div class="mt-4 text-right text-sm text-gray-800 font-semibold" id="totaleProvvigioni"></div>
-      <div class="text-right text-sm text-gray-800 font-semibold" id="rpdTotale"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Contratto</th>
+            <th>Netto &euro;</th>
+            <th>Giorni</th>
+            <th>RPD &euro;</th>
+            <th>Provv. &euro;</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tabella"></tbody>
+      </table>
+      <div style="margin-top: 1rem; text-align: right; font-weight: 600;" id="totaleProvvigioni"></div>
+      <div style="text-align: right; font-weight: 600;" id="rpdTotale"></div>
     </div>
+
   </div>
 
   <script>
+    const mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
     const meseSelect = document.getElementById("mese");
     const annoSelect = document.getElementById("anno");
-    const mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+    const statsDiv = document.getElementById("stats");
 
     const oggi = new Date();
-    mesi.forEach((mese, i) => meseSelect.innerHTML += `<option value="${i + 1}">${mese}</option>`);
+    mesi.forEach((mese, i) => {
+      meseSelect.innerHTML += `<option value="${i + 1}">${mese}</option>`;
+    });
     for (let y = oggi.getFullYear() - 2; y <= oggi.getFullYear() + 2; y++) {
       annoSelect.innerHTML += `<option value="${y}">${y}</option>`;
     }
@@ -127,12 +173,25 @@
       return 0.03;
     }
 
+    function aggiornaStats(contratti) {
+      const totaleContratti = contratti.length;
+      const totaleGiorni = contratti.reduce((acc, c) => acc + c.giorni, 0);
+      statsDiv.innerHTML = `
+        <div>Totale Contratti: ${totaleContratti}</div>
+        <div>Totale Giorni: ${totaleGiorni}</div>
+      `;
+    }
+
     function aggiornaTabella() {
       const contratti = getContratti();
+      aggiornaStats(contratti);
+
       const tbody = document.getElementById("tabella");
       tbody.innerHTML = "";
 
-      let sommaNetto = 0, sommaGiorni = 0;
+      let sommaNetto = 0;
+      let sommaGiorni = 0;
+
       contratti.forEach(c => {
         sommaNetto += c.netto;
         sommaGiorni += c.giorni;
@@ -150,54 +209,67 @@
         tbody.innerHTML += `
           <tr>
             <td>${c.codice}</td>
-            <td>€ ${c.netto.toFixed(2)}</td>
+            <td>&euro; ${c.netto.toFixed(2)}</td>
             <td>${c.giorni}</td>
-            <td>€ ${rpd.toFixed(2)}</td>
-            <td>€ ${provvigione.toFixed(2)}</td>
-            <td><button onclick="cancellaContratto(${i})">🗑️</button></td>
+            <td>&euro; ${rpd.toFixed(2)}</td>
+            <td>&euro; ${provvigione.toFixed(2)}</td>
+            <td><button class="delete-btn" onclick="cancellaContratto(${i})" aria-label="Elimina contratto">🗑️</button></td>
           </tr>`;
       });
 
       document.getElementById("totaleProvvigioni").textContent = `Totale Provvigioni: € ${totaleProvv.toFixed(2)}`;
       document.getElementById("rpdTotale").textContent = `RPD Totale: € ${rpdTotale.toFixed(2)} (Provvigione: ${(percentuale * 100).toFixed(0)}%)`;
-      document.getElementById("totaleContratti").textContent = `Totale Contratti: ${contratti.length}`;
-      document.getElementById("totaleGiorni").textContent = `Giorni Totali: ${sommaGiorni}`;
     }
 
     function aggiungiContratto() {
-      const codice = document.getElementById("contratto").value.trim();
+      const inputContratto = document.getElementById("contratto");
+      const codiceRaw = inputContratto.value.trim();
+
+      // Controllo prefisso
+      if (!codiceRaw.startsWith("25-bri-")) {
+        alert("Il numero contratto deve iniziare con '25-bri-'.");
+        return;
+      }
+      const codiceNumero = codiceRaw.slice(7);
+      if (!/^\d+$/.test(codiceNumero)) {
+        alert("Dopo '25-bri-' inserire solo numeri.");
+        return;
+      }
+
       const lordo = parseFloat(document.getElementById("lordo").value);
       const giorni = parseInt(document.getElementById("giorni").value);
       const netto = lordo * 0.78;
 
-      if (!codice || isNaN(netto) || isNaN(giorni) || giorni <= 0) {
+      if (!codiceRaw || isNaN(netto) || isNaN(giorni) || giorni <= 0 || lordo <= 0) {
         alert("Inserisci tutti i campi correttamente.");
         return;
       }
 
       const contratti = getContratti();
-      contratti.push({ codice, netto, giorni });
+      contratti.push({ codice: codiceRaw, netto, giorni });
       setContratti(contratti);
       aggiornaTabella();
 
-      document.getElementById("contratto").value = "";
+      inputContratto.value = "";
       document.getElementById("lordo").value = "";
       document.getElementById("giorni").value = "";
     }
 
-    function prefissoContratto() {
-      const input = document.getElementById("contratto");
-      const val = input.value;
-      if (!val.startsWith("25-bri-")) {
-        input.value = "25-bri-" + val.replace(/^25-bri-/, "");
-      }
+    function calcolaNetto() {
+      // Non serve visualizzare niente
     }
 
-    function soloNumeri(evt) {
-      const code = evt.keyCode || evt.which;
-      if ((code < 48 || code > 57) && code !== 46) {
-        evt.preventDefault();
+    function validateContratto() {
+      const input = document.getElementById("contratto");
+      let val = input.value;
+
+      // Aggiunge il prefisso fisso se non c'è
+      if (!val.startsWith("25-bri-")) {
+        val = "25-bri-";
       }
+      // Rimuove tutto ciò che non è numero dopo il prefisso
+      let afterPrefix = val.slice(7).replace(/\D/g, "");
+      input.value = "25-bri-" + afterPrefix;
     }
 
     function cancellaContratto(index) {
@@ -209,16 +281,20 @@
       }
     }
 
-    function stampaContratti() {
-      const sezione = document.querySelector(".bg-white.p-6.rounded-2xl.shadow-lg:nth-of-type(3)").outerHTML;
-      const win = window.open();
-      win.document.write(`<!DOCTYPE html><html><head><title>Contratti</title><style>body{font-family:sans-serif;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:8px;text-align:center}</style></head><body>${sezione}</body></html>`);
-      win.print();
-      win.close();
-    }
-
     meseSelect.addEventListener("change", aggiornaTabella);
     annoSelect.addEventListener("change", aggiornaTabella);
+
+    function exportPDF() {
+      // Esporta solo la sezione contratti
+      const pdfContent = document.getElementById("contratti-section").innerHTML;
+      const originalBody = document.body.innerHTML;
+      document.body.innerHTML = pdfContent;
+      window.print();
+      document.body.innerHTML = originalBody;
+      location.reload();
+    }
+
+    // Inizializza
     aggiornaTabella();
   </script>
 </body>
