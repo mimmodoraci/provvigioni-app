@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Calcolo Provvigioni</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       background: linear-gradient(to right, #fdfcfb, #e2d1c3);
@@ -59,23 +60,23 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div>
           <label class="form-label">Numero Contratto</label>
-          <input type="number" id="contratto" class="w-full p-2 border border-gray-300 rounded-md" oninput="prefissoContratto()" inputmode="numeric">
+          <input type="number" id="contratto" class="w-full p-2 border border-gray-300 rounded-md" inputmode="numeric">
         </div>
         <div>
           <label class="form-label">Fatturato Lordo €</label>
-          <input type="number" id="lordo" inputmode="numeric" min="0" step="0.01" onkeypress="return soloNumeri(event)" class="w-full p-2 border border-gray-300 rounded-md">
+          <input type="number" id="lordo" inputmode="numeric" min="0" step="0.01" class="w-full p-2 border border-gray-300 rounded-md">
         </div>
         <div>
           <label class="form-label">Giorni Contratto</label>
-          <input type="number" id="giorni" inputmode="numeric" min="1" max="365" onkeypress="return soloNumeri(event)" class="w-full p-2 border border-gray-300 rounded-md">
+          <input type="number" id="giorni" inputmode="numeric" min="1" max="365" class="w-full p-2 border border-gray-300 rounded-md">
         </div>
       </div>
       <button onclick="aggiungiContratto()" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl shadow-lg text-lg">Salva Contratto</button>
-      <div id="salvataggioOK" class="text-green-600 mt-3"></div>
+      <div id="salvataggioOK" class="text-green-600 mt-3 transition-opacity duration-700"></div>
     </div>
 
     <!-- Tabella Contratti -->
-    <div class="bg-white p-6 rounded-2xl shadow-xl">
+    <div id="sezioneTabella" class="bg-white p-6 rounded-2xl shadow-xl">
       <h3 class="text-xl font-semibold mb-4 text-gray-800">Contratti Salvati</h3>
       <div class="overflow-x-auto">
         <table class="w-full text-sm text-center bg-white border border-gray-200">
@@ -95,12 +96,25 @@
       <div class="mt-4 text-right text-base text-gray-800 font-semibold" id="totaleProvvigioni"></div>
       <div class="text-right text-sm text-gray-600 font-medium" id="rpdTotale"></div>
     </div>
+
+    <!-- Grafico -->
+    <div class="bg-white p-6 rounded-2xl shadow-xl">
+      <h3 class="text-xl font-semibold mb-4 text-gray-800">Andamento Provvigioni</h3>
+      <canvas id="graficoProvvigioni" height="100"></canvas>
+    </div>
   </div>
 
-  <!-- JS invariato -->
-  <script>
-    // Tutto lo script JS rimane invariato tranne:
-    // document.getElementById("contratto") ora ha type="number" con inputmode="numeric"
-  </script>
+  <!-- Modal Conferma Eliminazione -->
+  <div id="modalConferma" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-xl shadow-xl w-80">
+      <p class="text-center mb-4 text-gray-800">Sei sicuro di voler eliminare questo contratto?</p>
+      <div class="flex justify-between">
+        <button onclick="chiudiModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded">Annulla</button>
+        <button id="btnConfermaEliminazione" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">Elimina</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/contratti.js"></script>
 </body>
 </html>
