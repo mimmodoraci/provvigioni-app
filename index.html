@@ -43,6 +43,8 @@ l<!DOCTYPE html>
       <div class="text-gray-700 font-semibold text-base space-y-1">
         <div id="totaleContratti"></div>
         <div id="totaleGiorni"></div>
+          <div id="totaleNetto"></div>
+          <div id="mediaGiorni"></div>
       </div>
       <div class="space-x-2 mt-4 sm:mt-0">
         <button onclick="stampaContratti()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl shadow">
@@ -207,6 +209,8 @@ l<!DOCTYPE html>
 
       document.getElementById("totaleContratti").textContent = `Totale contratti: ${contratti.length}`;
       document.getElementById("totaleGiorni").textContent = `Totale giorni: ${sommaGiorni}`;
+      document.getElementById("totaleNetto").textContent = `Fatturato netto totale: € ${sommaNetto.toFixed(2)}`;
+      document.getElementById("mediaGiorni").textContent = `Media giorni/contratto: ${contratti.length > 0 ? (sommaGiorni / contratti.length).toFixed(1) : 0}`;
       document.getElementById("totaleProvvigioni").textContent = `Totale provvigioni: € ${totaleProvv.toFixed(2)}`;
       document.getElementById("rpdTotale").textContent = `RPD medio: € ${rpdTotale.toFixed(2)}`;
 
