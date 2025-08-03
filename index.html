@@ -1,4 +1,4 @@
-l<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
@@ -43,8 +43,8 @@ l<!DOCTYPE html>
       <div class="text-gray-700 font-semibold text-base space-y-1">
         <div id="totaleContratti"></div>
         <div id="totaleGiorni"></div>
-          <div id="totaleNetto"></div>
-          <div id="mediaGiorni"></div>
+        <div id="totaleNetto"></div>
+        <div id="mediaGiorni"></div>
       </div>
       <div class="space-x-2 mt-4 sm:mt-0">
         <button onclick="stampaContratti()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl shadow">
@@ -170,7 +170,6 @@ l<!DOCTYPE html>
 
     function caricaDati() {
       aggiornaTabella();
-      // generaNumeroContratto(); // disattivata
       nascondiMessaggioSalvataggio();
     }
 
@@ -286,7 +285,7 @@ l<!DOCTYPE html>
         return;
       }
 
-      const netto = lordo * 0.90;
+      const netto = lordo * 0.78; // ✅ Corretto da 0.90 a 0.78 (lordo - 22%)
       contratti.push({ codice: contratto, netto, giorni });
       setContratti(contratti);
 
