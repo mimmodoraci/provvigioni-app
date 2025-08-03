@@ -1,3 +1,7 @@
+<!--
+File: index.html
+Funzionalità: Calcolo provvigioni con correzione automatica del netto da 90% a 78%
+-->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -159,6 +163,25 @@
       localStorage.setItem(getKey(), JSON.stringify(c));
     }
 
+    function correggiNettiSalvati() {
+      let contratti = getContratti();
+      let modificato = false;
+
+      contratti.forEach(c => {
+        const lordoStimato = (c.netto / 0.90).toFixed(2);
+        if ((c.netto / parseFloat(lordoStimato)).toFixed(2) === "0.90") {
+          const nuovoNetto = (parseFloat(lordoStimato) * 0.78).toFixed(2);
+          c.netto = parseFloat(nuovoNetto);
+          modificato = true;
+        }
+      });
+
+      if (modificato) {
+        setContratti(contratti);
+        console.log("✅ Correzione automatica: netti aggiornati da 90% a 78%");
+      }
+    }
+
     function getPercentualeProvvigione(rpdTotale) {
       if (rpdTotale >= 20) return 0.08;
       if (rpdTotale >= 18) return 0.06;
@@ -169,6 +192,7 @@
     let indiceEliminazione = null;
 
     function caricaDati() {
+      correggiNettiSalvati(); // 👈 attivata correzione automatica
       aggiornaTabella();
       nascondiMessaggioSalvataggio();
     }
@@ -285,7 +309,7 @@
         return;
       }
 
-      const netto = lordo * 0.78; // ✅ Corretto da 0.90 a 0.78 (lordo - 22%)
+      const netto = lordo * 0.78;
       contratti.push({ codice: contratto, netto, giorni });
       setContratti(contratti);
 
@@ -372,22 +396,17 @@
         doc.text(rpd.toFixed(2), 130, y);
         doc.text(provv.toFixed(2), 160, y);
         y += 6;
-
         if (y > 280) {
           doc.addPage();
           y = 20;
         }
       });
 
-      y += 8;
-      doc.setFontSize(14);
-      doc.text(`Totale Provvigioni: € ${(sommaNetto * percentuale).toFixed(2)}`, 14, y);
-      doc.text(`RPD medio: € ${rpdTotale.toFixed(2)}`, 14, y + 8);
-
-      doc.save(`Contratti_${annoSelect.value}_${meseSelect.value}.pdf`);
+      doc.save(`Contratti_${meseSelect.value}_${annoSelect.value}.pdf`);
     }
 
-    caricaDati();
+    // Esegui al primo caricamento
+    window.addEventListener("DOMContentLoaded", caricaDati);
   </script>
 </body>
 </html>
